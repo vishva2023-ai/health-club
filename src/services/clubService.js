@@ -1,4 +1,4 @@
-import { collection, doc, query, where, onSnapshot, runTransaction, setDoc, getDoc, serverTimestamp, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, doc, query, where, onSnapshot, runTransaction, setDoc, getDoc, serverTimestamp, updateDoc, addDoc, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { getFirebase } from '@/lib/firebase';
 import { registrationProblem, attendanceProblem } from './clubPolicy';
@@ -11,6 +11,10 @@ export async function subscribeRecords(name, filters, onData, onError) {
 export async function saveRecord(name, id, data) {
   const { db, auth } = await getFirebase();
   if (!auth.currentUser) throw new Error('Your session has ended. Sign in again.');
+  if (name === 'events' && !id) {
+    if (Number(data.capacity) < 1 || new Date(data.registrationOpens) >= new Date(data.registrationCloses) || new Date(data.registrationCloses) > new Date(data.startsAt)) throw new Error('Check capacity and dates: registration must open before it closes, and close before the activity starts.');
+    data = { ...data, registrationOpenAt: Timestamp.fromDate(new Date(data.registrationOpens)), registrationCloseAt: Timestamp.fromDate(new Date(data.registrationCloses)) };
+  }
   if (id) return updateDoc(doc(db, name, id), { ...data, updatedAt: serverTimestamp(), updatedBy: auth.currentUser.uid });
   return addDoc(collection(db, name), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: auth.currentUser.uid });
 }
@@ -61,7 +65,7 @@ export async function submitReport(report, content, attachments, uid) {
     const status = version > 1 ? 'resubmitted' : 'submitted';
     const values = { studentId: uid, coordinatorIds: eventSnap.data().coordinatorIds, eventId: report.eventId, title: report.title, content, attachments, version, status, updatedAt: serverTimestamp(), updatedBy: uid };
     tx.set(doc(db, 'reports', reportRef.id, 'versions', String(version)), { ...values, submittedAt: serverTimestamp() });
-    tx.set(reportRef, values);
+    tx.set(reportRef, values, { merge: true });
   });
 }
 export async function issueCertificate(event, student, uid) {

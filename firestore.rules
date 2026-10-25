@@ -63,8 +63,8 @@ service cloud.firestore {
         && request.resource.data.status == 'registered'
         && request.resource.data.coordinatorIds == eventData(request.resource.data.eventId).coordinatorIds
         && eventData(request.resource.data.eventId).status == 'published'
-        && request.time < timestamp.value(eventData(request.resource.data.eventId).registrationCloses + ':00Z')
-        && request.time >= timestamp.value(eventData(request.resource.data.eventId).registrationOpens + ':00Z')
+        && request.time < eventData(request.resource.data.eventId).registrationCloseAt
+        && request.time >= eventData(request.resource.data.eventId).registrationOpenAt
         && (eventData(request.resource.data.eventId).eligibility == 'all'
           || (eventData(request.resource.data.eventId).eligibility == 'exc' && userDoc().get('excEnrollment', '') == 'verified')
           || (eventData(request.resource.data.eventId).eligibility == 'junior' && userDoc().get('juniorCore', '') == 'verified'))
@@ -97,7 +97,8 @@ service cloud.firestore {
           && request.resource.data.coordinatorIds == resource.data.coordinatorIds
           && request.resource.data.status == 'resubmitted'
           && request.resource.data.version == resource.data.version + 1
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'attachments', 'title', 'status', 'version', 'updatedAt', 'updatedBy', 'remarks', 'reviewedBy']))
+          && getAfter(/databases/$(database)/documents/reports/$(id)/versions/$(string(request.resource.data.version))).data.version == request.resource.data.version
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'attachments', 'title', 'status', 'version', 'updatedAt', 'updatedBy']))
         || (assigned(resource.data) && resource.data.status in ['submitted', 'resubmitted', 'preliminary-checked']
           && ((faculty() && request.resource.data.status in ['approved', 'rejected', 'correction-required'])
             || (role() == 'board' && request.resource.data.status == 'preliminary-checked'))
