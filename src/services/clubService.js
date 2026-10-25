@@ -62,7 +62,7 @@ export async function recordAttendance(profile, eventId, registrationId) {
     tx.set(attendanceRef, { eventId, coordinatorIds: eventSnap.data().coordinatorIds, studentId: registration.studentId, studentName: registration.studentName, regNo: registration.regNo, status: 'present', recordedBy: uid, recordedAt: serverTimestamp(), method: 'organizer-verification' });
   });
 }
-export async function submitReport(report, content, attachments, uid) {
+export async function submitReport(report, content, attachments, uid, draft = false) {
   const { db } = await getFirebase();
   const reportRef = report.id ? doc(db, 'reports', report.id) : doc(collection(db, 'reports'));
   await runTransaction(db, async (tx) => {
@@ -71,11 +71,20 @@ export async function submitReport(report, content, attachments, uid) {
     const data = previous.exists() ? previous.data() : null;
     if (data && !['draft', 'correction-required'].includes(data.status)) throw new Error('This report cannot be edited now.');
     const version = Number(data?.version || 0) + 1;
-    const status = version > 1 ? 'resubmitted' : 'submitted';
+    const status = draft ? 'draft' : data?.version ? 'resubmitted' : 'submitted';
     const values = { studentId: uid, coordinatorIds: eventSnap.data().coordinatorIds, eventId: report.eventId, title: report.title, content, attachments, version, status, updatedAt: serverTimestamp(), updatedBy: uid };
     tx.set(doc(db, 'reports', reportRef.id, 'versions', String(version)), { ...values, submittedAt: serverTimestamp() });
     tx.set(reportRef, values, { merge: true });
   });
+}
+export async function reviseEvent(event, data) {
+  const { db, auth } = await getFirebase();
+  if (!auth.currentUser) throw new Error('Sign in again.');
+  return updateDoc(doc(db, 'events', event.id), { title: data.title, description: data.description, status: 'resubmitted', updatedBy: auth.currentUser.uid, updatedAt: serverTimestamp() });
+}
+export async function readHistory(collectionName, id, onData, onError) {
+  const { db } = await getFirebase();
+  return onSnapshot(collection(db, collectionName, id, collectionName === 'reports' ? 'versions' : 'decisions'), (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() }))), onError);
 }
 export async function issueCertificate(event, student, uid) {
   const { db } = await getFirebase();
