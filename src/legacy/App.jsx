@@ -206,18 +206,44 @@ function App() {
   );
 }
 
-function Login({ role, onRoleChange, onLogin, onNotice, notice }) {
+function Login({ onNotice, notice }) {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
+  const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const handleSubmit = (event) => {
+  const [name, setName] = useState("");
+  const [regNo, setRegNo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const isSignUp = mode === "signup";
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!email.trim() || !password) {
       onNotice("Enter your campus email and password to continue.");
       return;
     }
-    onLogin();
+    if (isSignUp) {
+      if (!name.trim() || !regNo.trim()) { onNotice("Enter your full name and registration number."); return; }
+      if (!isCampusEmail(email)) { onNotice("Use your VIT campus email (vitstudent.ac.in or vit.ac.in)."); return; }
+    }
+    setBusy(true);
+    try {
+      if (isSignUp) {
+        await signUpStudent({ name: name.trim(), email, password, regNo });
+        onNotice("Account created. Check your inbox to verify your email.");
+      } else {
+        await signIn(email, password, remember);
+      }
+    } catch (error) {
+      onNotice(friendlyAuthError(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const handleReset = async () => {
+    if (!email.trim()) { onNotice("Enter your campus email first, then tap Forgot password."); return; }
+    try { await resetPassword(email); onNotice("Password reset link sent to your email."); }
+    catch (error) { onNotice(friendlyAuthError(error)); }
   };
   return (
     <div className="login-screen">
