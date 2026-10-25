@@ -1,0 +1,81 @@
+import { collection, doc, query, where, onSnapshot, runTransaction, setDoc, getDoc, serverTimestamp, updateDoc, addDoc } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { getFirebase } from '@/lib/firebase';
+import { registrationProblem, attendanceProblem } from './clubPolicy';
+
+export async function subscribeRecords(name, filters, onData, onError) {
+  const { db } = await getFirebase();
+  const source = filters.length ? query(collection(db, name), ...filters.map(([field, value]) => where(field, '==', value))) : collection(db, name);
+  return onSnapshot(source, (snap) => onData(snap.docs.map((row) => ({ ...row.data(), id: row.id }))), onError);
+}
+export async function saveRecord(name, id, data) {
+  const { db, auth } = await getFirebase();
+  if (!auth.currentUser) throw new Error('Your session has ended. Sign in again.');
+  if (id) return updateDoc(doc(db, name, id), { ...data, updatedAt: serverTimestamp(), updatedBy: auth.currentUser.uid });
+  return addDoc(collection(db, name), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: auth.currentUser.uid });
+}
+export async function registerForActivity(profile, eventId) {
+  const { db, auth } = await getFirebase();
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Sign in again.');
+  await runTransaction(db, async (tx) => {
+    const eventRef = doc(db, 'events', eventId);
+    const registrationRef = doc(db, 'registrations', `${eventId}_${uid}`);
+    const [eventSnap, registration] = await Promise.all([tx.get(eventRef), tx.get(registrationRef)]);
+    if (!eventSnap.exists()) throw new Error('This event is no longer available.');
+    if (registration.exists()) throw new Error('You already registered for this event.');
+    const event = eventSnap.data();
+    const problem = registrationProblem(profile, event);
+    if (problem) throw new Error(problem);
+    tx.set(registrationRef, { eventId, studentId: uid, studentName: profile.name, regNo: profile.regNo || '', status: 'registered', createdAt: serverTimestamp() });
+    tx.update(eventRef, { registrationCount: Number(event.registrationCount || 0) + 1 });
+  });
+}
+export async function recordAttendance(profile, eventId, registrationId) {
+  const { db, auth } = await getFirebase();
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Sign in again.');
+  await runTransaction(db, async (tx) => {
+    const eventRef = doc(db, 'events', eventId);
+    const registrationRef = doc(db, 'registrations', registrationId);
+    const [eventSnap, regSnap] = await Promise.all([tx.get(eventRef), tx.get(registrationRef)]);
+    if (!eventSnap.exists() || !regSnap.exists()) throw new Error('Event or registration not found.');
+    const registration = regSnap.data();
+    if (registration.eventId !== eventId) throw new Error('This registration belongs to another event.');
+    const attendanceRef = doc(db, 'attendance', `${eventId}_${registration.studentId}`);
+    const existing = await tx.get(attendanceRef);
+    const problem = attendanceProblem(profile, uid, eventSnap.data(), registration, existing.exists() ? existing.data() : null);
+    if (problem) throw new Error(problem);
+    tx.set(attendanceRef, { eventId, studentId: registration.studentId, studentName: registration.studentName, regNo: registration.regNo, status: 'present', recordedBy: uid, recordedAt: serverTimestamp(), method: 'organizer-verification' });
+  });
+}
+export async function submitReport(report, content, attachments, uid) {
+  const { db } = await getFirebase();
+  const reportRef = report.id ? doc(db, 'reports', report.id) : doc(collection(db, 'reports'));
+  await runTransaction(db, async (tx) => {
+    const previous = await tx.get(reportRef);
+    const data = previous.exists() ? previous.data() : null;
+    if (data && !['draft', 'correction-required'].includes(data.status)) throw new Error('This report cannot be edited now.');
+    const version = Number(data?.version || 0) + 1;
+    const status = version > 1 ? 'resubmitted' : 'submitted';
+    const values = { studentId: uid, eventId: report.eventId, title: report.title, content, attachments, version, status, updatedAt: serverTimestamp(), updatedBy: uid };
+    tx.set(doc(db, 'reports', reportRef.id, 'versions', String(version)), { ...values, submittedAt: serverTimestamp() });
+    tx.set(reportRef, values);
+  });
+}
+export async function issueCertificate(event, student, uid) {
+  const { db } = await getFirebase();
+  const attendance = await getDoc(doc(db, 'attendance', `${event.id}_${student.studentId}`));
+  if (!attendance.exists()) throw new Error('Verified attendance is required before issuance.');
+  await setDoc(doc(db, 'certificates', `${event.id}_${student.studentId}`), { eventId: event.id, studentId: student.studentId, title: event.title, recipient: student.studentName, issuedBy: uid, issuedAt: serverTimestamp(), status: 'issued' });
+}
+export async function uploadEvidence(file, uid, onProgress) {
+  const { storage } = await getFirebase();
+  const object = ref(storage, `evidence/${uid}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
+  return new Promise((resolve, reject) => {
+    const task = uploadBytesResumable(object, file);
+    task.on('state_changed', (snap) => onProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)), reject, async () => {
+      try { resolve({ name: file.name, path: object.fullPath, url: await getDownloadURL(object), uploadedBy: uid }); } catch (e) { reject(e); }
+    });
+  });
+}
