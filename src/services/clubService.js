@@ -5,7 +5,7 @@ import { registrationProblem, attendanceProblem } from './clubPolicy';
 
 export async function subscribeRecords(name, filters, onData, onError) {
   const { db } = await getFirebase();
-  const source = filters.length ? query(collection(db, name), ...filters.map(([field, value]) => where(field, '==', value))) : collection(db, name);
+  const source = filters.length ? query(collection(db, name), ...filters.map(([field, value]) => where(field, field === 'coordinatorIds' ? 'array-contains' : '==', value))) : collection(db, name);
   return onSnapshot(source, (snap) => onData(snap.docs.map((row) => ({ ...row.data(), id: row.id }))), onError);
 }
 export async function saveRecord(name, id, data) {
@@ -27,7 +27,7 @@ export async function registerForActivity(profile, eventId) {
     const event = eventSnap.data();
     const problem = registrationProblem(profile, event);
     if (problem) throw new Error(problem);
-    tx.set(registrationRef, { eventId, studentId: uid, studentName: profile.name, regNo: profile.regNo || '', status: 'registered', createdAt: serverTimestamp() });
+    tx.set(registrationRef, { eventId, coordinatorIds: event.coordinatorIds, studentId: uid, studentName: profile.name, regNo: profile.regNo || '', status: 'registered', createdAt: serverTimestamp() });
     tx.update(eventRef, { registrationCount: Number(event.registrationCount || 0) + 1 });
   });
 }
@@ -46,19 +46,20 @@ export async function recordAttendance(profile, eventId, registrationId) {
     const existing = await tx.get(attendanceRef);
     const problem = attendanceProblem(profile, uid, eventSnap.data(), registration, existing.exists() ? existing.data() : null);
     if (problem) throw new Error(problem);
-    tx.set(attendanceRef, { eventId, studentId: registration.studentId, studentName: registration.studentName, regNo: registration.regNo, status: 'present', recordedBy: uid, recordedAt: serverTimestamp(), method: 'organizer-verification' });
+    tx.set(attendanceRef, { eventId, coordinatorIds: eventSnap.data().coordinatorIds, studentId: registration.studentId, studentName: registration.studentName, regNo: registration.regNo, status: 'present', recordedBy: uid, recordedAt: serverTimestamp(), method: 'organizer-verification' });
   });
 }
 export async function submitReport(report, content, attachments, uid) {
   const { db } = await getFirebase();
   const reportRef = report.id ? doc(db, 'reports', report.id) : doc(collection(db, 'reports'));
   await runTransaction(db, async (tx) => {
-    const previous = await tx.get(reportRef);
+    const [previous, eventSnap] = await Promise.all([tx.get(reportRef), tx.get(doc(db, 'events', report.eventId))]);
+    if (!eventSnap.exists()) throw new Error('Activity not found.');
     const data = previous.exists() ? previous.data() : null;
     if (data && !['draft', 'correction-required'].includes(data.status)) throw new Error('This report cannot be edited now.');
     const version = Number(data?.version || 0) + 1;
     const status = version > 1 ? 'resubmitted' : 'submitted';
-    const values = { studentId: uid, eventId: report.eventId, title: report.title, content, attachments, version, status, updatedAt: serverTimestamp(), updatedBy: uid };
+    const values = { studentId: uid, coordinatorIds: eventSnap.data().coordinatorIds, eventId: report.eventId, title: report.title, content, attachments, version, status, updatedAt: serverTimestamp(), updatedBy: uid };
     tx.set(doc(db, 'reports', reportRef.id, 'versions', String(version)), { ...values, submittedAt: serverTimestamp() });
     tx.set(reportRef, values);
   });

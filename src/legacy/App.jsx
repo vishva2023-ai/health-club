@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FacultyModule from "./FacultyModule.jsx";
+import ConnectedWorkspace from "./ConnectedWorkspace.jsx";
+import { Button } from "@/components/ui/button";
 import "./style.css";
 import "./faculty.css";
 import { watchAuth, logOut, signIn, signUpStudent, resetPassword, friendlyAuthError, isCampusEmail, ROLE_LABELS } from "@/services/authService";
@@ -140,6 +142,12 @@ function App() {
     return <div className="login-screen" style={{ display: "grid", placeItems: "center", padding: 24 }}><div className="login-form-wrap"><h2>Account profile missing</h2><p>{session.error ? friendlyAuthError(session.error) : "Your sign-in worked, but no club profile exists for this account yet. Ask a faculty coordinator to set up your profile."}</p><button className="outline-button" onClick={handleSignOut}>Sign out</button></div></div>;
   }
 
+  if (profile.status !== "active" || !ROLE_LABELS[profile.role]) {
+    return <div className="login-panel"><h2>Club access unavailable</h2><p>Your account needs an active club appointment or student profile.</p><Button onClick={handleSignOut}>Sign out</Button></div>;
+  }
+
+  return <ConnectedWorkspace session={session} onSignOut={handleSignOut} />;
+
   if (role === "Admin / Faculty") {
     return <FacultyModule name={roleFullName} onSignOut={handleSignOut} />;
   }
@@ -208,6 +216,7 @@ function App() {
 }
 
 function Login({ onNotice, notice }) {
+  const [entry, setEntry] = useState("Student");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [mode, setMode] = useState("signin");
@@ -272,7 +281,8 @@ function Login({ onNotice, notice }) {
           <div className="brand-symbol"><Icon name="heart" size={20} /></div><div><strong>Smart Health Club</strong><small>MANAGEMENT</small></div>
         </div>
         <div className="login-form-wrap">
-          <div className="login-heading"><span className="welcome-icon"><Icon name="heart" size={19} /></span><div className="eyebrow">{isSignUp ? "JOIN THE CLUB" : "WELCOME BACK"}</div><h2>{isSignUp ? "Create your student account" : "Sign in to your account"}</h2><p>{isSignUp ? "Board and faculty access is granted by club coordinators." : "Your dashboard opens based on your verified club role."}</p></div>
+          <div className="login-heading"><span className="welcome-icon"><Icon name="heart" size={19} /></span><div className="eyebrow">VIT HEALTH CLUB</div><h2>{isSignUp ? "Create your student account" : `${entry} login`}</h2><p>{isSignUp ? "Membership and course enrollment require faculty verification." : "Access is based on your official club appointment."}</p></div>
+          <div className="role-entry-tabs" role="group" aria-label="Sign-in workspace">{["Student", "Board Member", "Faculty / Admin"].map((label) => <Button key={label} type="button" variant={entry === label ? "default" : "outline"} aria-pressed={entry === label} onClick={() => { setEntry(label); setMode("signin"); }}>{label}</Button>)}</div>
           <form onSubmit={handleSubmit}>
             {isSignUp && <>
               <label className="field-label" htmlFor="name">Full name</label>
@@ -531,15 +541,8 @@ function AttendanceScanner({ members, autoStart, onAutoStartHandled, onCheckIn, 
     if (!cameraActive) return undefined;
     scanCompletedRef.current = false;
     if (typeof window.BarcodeDetector !== "function") {
-      setDemoScanPending(true);
-      const demoTimer = window.setTimeout(() => {
-        if (scanCompletedRef.current) return;
-        const eligibleMember = members.find((member) => member.status !== "Checked in") || members[0];
-        setDemoScanPending(false);
-        if (eligibleMember) handleStudentId(eligibleMember.id);
-        else setCameraError("No students are available to record attendance for this event.");
-      }, 2000);
-      return () => window.clearTimeout(demoTimer);
+      setCameraError("Barcode scanning is unavailable in this browser. Use manual verification; no attendance has been recorded.");
+      return undefined;
     }
 
     let cancelled = false;
@@ -548,15 +551,8 @@ function AttendanceScanner({ members, autoStart, onAutoStartHandled, onCheckIn, 
     try {
       detector = new window.BarcodeDetector({ formats: ["qr_code", "code_128", "code_39", "ean_13", "upc_a"] });
     } catch {
-      setDemoScanPending(true);
-      const demoTimer = window.setTimeout(() => {
-        if (scanCompletedRef.current) return;
-        const eligibleMember = members.find((member) => member.status !== "Checked in") || members[0];
-        setDemoScanPending(false);
-        if (eligibleMember) handleStudentId(eligibleMember.id);
-        else setCameraError("No students are available to record attendance for this event.");
-      }, 2000);
-      return () => window.clearTimeout(demoTimer);
+      setCameraError("Scanner could not start. Use manual verification; no attendance has been recorded.");
+      return undefined;
     }
 
     const scanFrame = async () => {
