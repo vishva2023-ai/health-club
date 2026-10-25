@@ -1,0 +1,28 @@
+rules_version = '2';
+// Deny by default. Roles live in users/{uid}.role and can only be changed by faculty/admin.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function role() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? userDoc().role : null; }
+    function isStaff() { return role() in ['faculty', 'admin']; }
+    function isBoard() { return role() == 'board' || isStaff(); }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isBoard());
+      // Self sign-up may only create a student profile.
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.role == 'student'
+        && request.resource.data.uid == uid;
+      // Users may edit their own profile but never their role/status.
+      allow update: if (signedIn() && request.auth.uid == uid
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'uid']))
+        || isStaff();
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

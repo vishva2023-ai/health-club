@@ -8,3 +8,9 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+## Project rules
+- Backend is the user's own Firebase project (health-club-ef145), not Lovable Cloud — the user explicitly required Firebase.
+- Firebase web config is served by a server function from secrets GOOGLE_API_KEY / GOOGLE_ANALYTICS_MEASUREMENT_ID; init is a browser-only singleton in src/lib/firebase.js.
+- The original app lives in src/legacy and renders client-only at "/" — preserve its design; enhance in place rather than rebuilding.
+- User roles come only from Firestore users/{uid}.role; never let the UI pick a role. Security rules in firestore.rules.
