@@ -74,8 +74,7 @@ const initialMembers = [
 ];
 
 function App() {
-  const [role, setRole] = useState("Student");
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [session, setSession] = useState(undefined);
   const [page, setPage] = useState("Overview");
   const [notice, setNotice] = useState("");
   const [registered, setRegistered] = useState(["Sunrise Yoga Flow"]);
@@ -86,18 +85,24 @@ function App() {
   const [query, setQuery] = useState("");
   const [autoStartScan, setAutoStartScan] = useState(false);
 
-  const { fullName: roleFullName, initials: roleInitials } = roleProfiles[role];
+  useEffect(() => {
+    let unsub = () => {};
+    watchAuth(setSession).then((fn) => { unsub = fn; }).catch((error) => { setSession(null); setNotice(friendlyAuthError(error)); });
+    return () => unsub();
+  }, []);
+
   const showNotice = (text) => {
     setNotice(text);
     window.clearTimeout(showNotice.timer);
     showNotice.timer = window.setTimeout(() => setNotice(""), 3200);
   };
 
-  const switchRole = (nextRole) => {
-    setRole(nextRole);
-    setPage("Overview");
-    setLoggedIn(false);
-  };
+  const handleSignOut = async () => { await logOut(); setPage("Overview"); };
+
+  const profile = session?.profile;
+  const role = ROLE_LABELS[profile?.role] || "Student";
+  const roleFullName = profile?.name || session?.user?.displayName || session?.user?.email || "";
+  const roleInitials = roleFullName.split(/[\s@.]+/).filter(Boolean).map((p) => p[0]).join("").slice(0, 3).toUpperCase();
 
   const registerForEvent = (eventName) => {
     setRegistered((current) => current.includes(eventName) ? current : [...current, eventName]);
@@ -120,12 +125,20 @@ function App() {
     setModal("");
   };
 
-  if (!loggedIn) {
-    return <Login role={role} onRoleChange={switchRole} onLogin={() => setLoggedIn(true)} onNotice={showNotice} notice={notice} />;
+  if (session === undefined) {
+    return <div className="login-screen" style={{ placeItems: "center", display: "grid" }}><p>Loading your club…</p></div>;
+  }
+
+  if (!session) {
+    return <Login onNotice={showNotice} notice={notice} />;
+  }
+
+  if (!profile) {
+    return <div className="login-screen" style={{ display: "grid", placeItems: "center", padding: 24 }}><div className="login-form-wrap"><h2>Account profile missing</h2><p>{session.error ? friendlyAuthError(session.error) : "Your sign-in worked, but no club profile exists for this account yet. Ask a faculty coordinator to set up your profile."}</p><button className="outline-button" onClick={handleSignOut}>Sign out</button></div></div>;
   }
 
   if (role === "Admin / Faculty") {
-    return <FacultyModule name={roleFullName} onSignOut={() => { setLoggedIn(false); setPage("Overview"); }} />;
+    return <FacultyModule name={roleFullName} onSignOut={handleSignOut} />;
   }
 
   const menu = menuByRole[role];
