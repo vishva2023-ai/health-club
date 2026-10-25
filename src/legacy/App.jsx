@@ -271,20 +271,22 @@ function Login({ onNotice, notice }) {
           <div className="brand-symbol"><Icon name="heart" size={20} /></div><div><strong>Smart Health Club</strong><small>MANAGEMENT</small></div>
         </div>
         <div className="login-form-wrap">
-          <div className="login-heading"><span className="welcome-icon"><Icon name="heart" size={19} /></span><div className="eyebrow">WELCOME BACK</div><h2>Sign in to your account</h2><p>Good to see you again. Let’s make today count.</p></div>
+          <div className="login-heading"><span className="welcome-icon"><Icon name="heart" size={19} /></span><div className="eyebrow">{isSignUp ? "JOIN THE CLUB" : "WELCOME BACK"}</div><h2>{isSignUp ? "Create your student account" : "Sign in to your account"}</h2><p>{isSignUp ? "Board and faculty access is granted by club coordinators." : "Your dashboard opens based on your verified club role."}</p></div>
           <form onSubmit={handleSubmit}>
-            <label className="field-label">I’m signing in as</label>
-            <div className="role-selector" role="tablist" aria-label="Choose your account type">
-              {roles.map((item) => <button key={item} type="button" role="tab" aria-selected={role === item} className={role === item ? "selected" : ""} onClick={() => onRoleChange(item)}>{item === "Student" ? <Icon name="person" size={16} /> : item === "Board member" ? <Icon name="users" size={16} /> : <Icon name="grid" size={16} />}<span>{item}</span></button>)}
-            </div>
+            {isSignUp && <>
+              <label className="field-label" htmlFor="name">Full name</label>
+              <div className="input-wrap"><span className="input-icon"><Icon name="person" size={17} /></span><input id="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your full name" autoComplete="name" /></div>
+              <label className="field-label" htmlFor="regno">Registration number</label>
+              <div className="input-wrap"><span className="input-icon">#</span><input id="regno" value={regNo} onChange={(event) => setRegNo(event.target.value)} placeholder="23MIS0451" /></div>
+            </>}
             <label className="field-label" htmlFor="email">Campus email</label>
-            <div className="input-wrap"><span className="input-icon">@</span><input id="email" type="email" placeholder="you@vit.ac.in" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" /></div>
-            <div className="password-label"><label className="field-label" htmlFor="password">Password</label><button type="button" className="text-button" onClick={() => onNotice("Password reset instructions will be sent to your campus email.")}>Forgot password?</button></div>
-            <div className="input-wrap"><span className="input-icon"><Icon name="check" size={17} /></span><input id="password" type={showPassword ? "text" : "password"} placeholder="Enter your password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" /><button type="button" className="show-password" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide" : "Show"}</button></div>
-            <label className="remember-row"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /><span className="custom-check">✓</span><span>Keep me signed in</span></label>
-            <button className="primary-button sign-in-button" type="submit">Sign in to your account <Icon name="arrow" size={18} /></button>
-            <div className="demo-divider"><span /> <small>NEW TO THE CLUB?</small> <span /></div>
-            <button type="button" className="outline-button" onClick={() => onNotice("Membership registration opens at the start of each semester.")}>Discover the club <Icon name="arrow" size={17} /></button>
+            <div className="input-wrap"><span className="input-icon">@</span><input id="email" type="email" placeholder="you@vitstudent.ac.in" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" /></div>
+            <div className="password-label"><label className="field-label" htmlFor="password">Password</label>{!isSignUp && <button type="button" className="text-button" onClick={handleReset}>Forgot password?</button>}</div>
+            <div className="input-wrap"><span className="input-icon"><Icon name="check" size={17} /></span><input id="password" type={showPassword ? "text" : "password"} placeholder={isSignUp ? "At least 6 characters" : "Enter your password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={isSignUp ? "new-password" : "current-password"} /><button type="button" className="show-password" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide" : "Show"}</button></div>
+            {!isSignUp && <label className="remember-row"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /><span className="custom-check">✓</span><span>Keep me signed in</span></label>}
+            <button className="primary-button sign-in-button" type="submit" disabled={busy}>{busy ? "Please wait…" : isSignUp ? "Create account" : "Sign in to your account"} <Icon name="arrow" size={18} /></button>
+            <div className="demo-divider"><span /> <small>{isSignUp ? "ALREADY A MEMBER?" : "NEW TO THE CLUB?"}</small> <span /></div>
+            <button type="button" className="outline-button" onClick={() => setMode(isSignUp ? "signin" : "signup")}>{isSignUp ? "Back to sign in" : "Create a student account"} <Icon name="arrow" size={17} /></button>
           </form>
           <p className="login-help">Having trouble signing in? <button onClick={() => onNotice("Contact the Health Club desk at wellness@vit.ac.in.")}>Get help</button></p>
         </div>
