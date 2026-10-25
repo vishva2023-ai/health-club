@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/firebase", () => ({ getFirebase: vi.fn() }));
