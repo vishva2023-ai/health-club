@@ -3,7 +3,7 @@ import {
   sendEmailVerification, signOut, onAuthStateChanged, setPersistence,
   browserLocalPersistence, browserSessionPersistence, updateProfile,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
 import { getFirebase } from "@/lib/firebase";
 
 // Firestore role values -> labels used by the existing UI.
@@ -42,15 +42,15 @@ export async function logOut() {
 
 export async function watchAuth(callback) {
   const { auth, db } = await getFirebase();
-  return onAuthStateChanged(auth, async (user) => {
-    if (!user) return callback(null);
-    try {
-      const snap = await getDoc(doc(db, "users", user.uid));
+  let stopProfile = () => {};
+  const stopAuth = onAuthStateChanged(auth, (user) => {
+    stopProfile();
+    if (!user) { callback(null); return; }
+    stopProfile = onSnapshot(doc(db, "users", user.uid), (snap) => {
       callback({ user, profile: snap.exists() ? snap.data() : null });
-    } catch (error) {
-      callback({ user, profile: null, error });
-    }
+    }, (error) => callback({ user, profile: null, error }));
   });
+  return () => { stopAuth(); stopProfile(); };
 }
 
 export function friendlyAuthError(error) {

@@ -15,6 +15,6 @@ Shared Firebase screens are implemented for events, registrations, organizer att
 
 The rules are source files; editing them here does not deploy them to Firebase. Firebase console settings, deployed rules, successful authentication, storage availability, and real-account cross-role flows remain unverified until project access/setup is available. Test rules against the Firebase emulator and run the three-account journey before production.
 
-Waitlists/cancellation, camera QR scanning in the connected attendance screen, report draft saving, history viewing, calendar, scoped faculty delegations, appointment periods, tasks/volunteers, notifications, year-end requirements/completion, exports/certificate PDF formats, MoUs and archives are not complete. Do not interpret request approval as an attendance amendment or institutional OD approval.
+Report draft saving, immutable report version viewing, proposal revisions, and event/request decision history are included. Waitlists/cancellation, camera QR scanning in the connected attendance screen, calendar, scoped faculty delegations, appointment periods, tasks/volunteers, notifications, year-end requirements/completion, exports/certificate PDF formats, MoUs and archives are not complete. Do not interpret request approval as an attendance amendment or institutional OD approval.
 
 Institutional rules are still needed for EXC thresholds, assessment, volunteer hours, OD authority, certificate eligibility and format, evidence file restrictions, and retention. No direct VTOP integration is assumed.
