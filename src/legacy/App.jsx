@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FacultyModule from "./FacultyModule.jsx";
+import "./faculty.css";
+import { watchAuth, logOut, signIn, signUpStudent, resetPassword, friendlyAuthError, isCampusEmail, ROLE_LABELS } from "@/services/authService";
 
 const roles = ["Student", "Board member", "Admin / Faculty"];
 const APP_NAME = "Smart Health Club Management";
@@ -174,7 +176,7 @@ function App() {
             <span className="profile-mini-copy"><strong>{roleFullName}</strong><small>{role}</small></span>
             <Icon name="more" size={19} />
           </button>
-          <button className="sign-out" onClick={() => { setLoggedIn(false); setPage("Overview"); }}><Icon name="logout" size={17} />Sign out</button>
+          <button className="sign-out" onClick={handleSignOut}><Icon name="logout" size={17} />Sign out</button>
         </div>
       </aside>
       {mobileNavOpen && <button className="scrim" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
