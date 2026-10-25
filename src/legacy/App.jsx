@@ -4,6 +4,7 @@ import ConnectedWorkspace from "./ConnectedWorkspace.jsx";
 import { Button } from "@/components/ui/button";
 import "./style.css";
 import "./faculty.css";
+import "./connected.css";
 import { watchAuth, logOut, signIn, signUpStudent, resetPassword, friendlyAuthError, isCampusEmail, ROLE_LABELS } from "@/services/authService";
 
 const roles = ["Student", "Board member", "Admin / Faculty"];

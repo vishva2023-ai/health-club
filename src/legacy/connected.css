@@ -23,6 +23,12 @@
 .connected-admin-header strong { font-size: 24px; }
 .role-entry-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 20px 0 26px; }
 .role-entry-tabs button { min-height: 50px; height: auto; white-space: normal; line-height: 1.4; }
+.role-entry-tabs button[aria-pressed="true"], .connected-workspace button[data-active="true"] { background: var(--blue); color: var(--paper); }
+.connected-workspace button { color: var(--ink); background: var(--paper); border: 1px solid var(--line); min-height: 44px; }
+.login-screen .input-wrap input, .login-screen .show-password { font-size: 16px; }
+.login-screen .field-label, .login-screen .remember-row, .login-screen .login-heading p, .login-screen .login-help { font-size: 15px; }
+.login-screen .sign-in-button { font-size: 16px; min-height: 52px; }
+.login-screen .login-heading h2 { font-size: 30px; }
 .login-screen { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
 .login-form-wrap { max-width: 520px; }
 .login-heading h2 { font-size: 30px; letter-spacing: 0; }
@@ -35,10 +41,10 @@
 .brand-lockup small, .workspace-label, .role-chip, .breadcrumbs, .breadcrumbs strong, .user-name, .sign-out { font-size: 13px; letter-spacing: 0; }
 .page-content { padding: 30px; max-width: 1550px; }
 @media (max-width: 900px) {
-  .login-screen { display: block; }
-  .login-story { display: none; }
+  body .login-screen { display: block; }
+  body .login-story { display: none; }
   .login-mobile-brand { display: flex; margin-bottom: 28px; }
-  .login-panel { padding: 28px 24px; min-height: 100dvh; }
+  body .login-panel { padding: 28px 24px; min-height: 100dvh; }
   .login-form-wrap { margin: 20px 0; }
 }
 @media (max-width: 650px) {

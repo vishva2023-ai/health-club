@@ -32,6 +32,21 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /{collectionName}/{id}/decisions/{decisionId} {
+      allow read: if collectionName in ['events', 'reports', 'requests'] && active()
+        && (assigned(get(/databases/$(database)/documents/$(collectionName)/$(id)).data)
+          || (collectionName in ['reports', 'requests'] && own(get(/databases/$(database)/documents/$(collectionName)/$(id)).data)));
+      allow create: if collectionName in ['events', 'reports', 'requests']
+        && assigned(get(/databases/$(database)/documents/$(collectionName)/$(id)).data)
+        && request.resource.data.reviewerId == request.auth.uid
+        && request.resource.data.decidedAt == request.time
+        && request.resource.data.remarks.size() > 0
+        && getAfter(/databases/$(database)/documents/$(collectionName)/$(id)).data.status == request.resource.data.status
+        && ((faculty() && request.resource.data.status in ['approved', 'changes-requested', 'correction-required', 'rejected'])
+          || (role() == 'board' && collectionName in ['reports', 'requests'] && request.resource.data.status == 'preliminary-checked'));
+      allow update, delete: if false;
+    }
+
     match /events/{id} {
       allow read: if active() && (resource.data.status == 'published' || assigned(resource.data));
       allow create: if active() && role() in ['board', 'faculty', 'admin']

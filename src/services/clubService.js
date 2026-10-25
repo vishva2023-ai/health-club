@@ -15,6 +15,15 @@ export async function saveRecord(name, id, data) {
     if (Number(data.capacity) < 1 || new Date(data.registrationOpens) >= new Date(data.registrationCloses) || new Date(data.registrationCloses) > new Date(data.startsAt)) throw new Error('Check capacity and dates: registration must open before it closes, and close before the activity starts.');
     data = { ...data, registrationOpenAt: Timestamp.fromDate(new Date(data.registrationOpens)), registrationCloseAt: Timestamp.fromDate(new Date(data.registrationCloses)) };
   }
+  if (id && data.reviewedBy) {
+    const uid = auth.currentUser.uid;
+    return runTransaction(db, async (tx) => {
+      const parent = doc(db, name, id); const snap = await tx.get(parent);
+      if (!snap.exists() || !['submitted', 'resubmitted', 'preliminary-checked'].includes(snap.data().status)) throw new Error('This item has already changed. Refresh and review the current status.');
+      tx.set(doc(collection(db, name, id, 'decisions')), { status: data.status, remarks: data.remarks, reviewerId: uid, previousStatus: snap.data().status, decidedAt: serverTimestamp() });
+      tx.update(parent, { ...data, updatedAt: serverTimestamp(), updatedBy: uid });
+    });
+  }
   if (id) return updateDoc(doc(db, name, id), { ...data, updatedAt: serverTimestamp(), updatedBy: auth.currentUser.uid });
   return addDoc(collection(db, name), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy: auth.currentUser.uid });
 }
