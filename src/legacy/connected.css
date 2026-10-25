@@ -1,0 +1,54 @@
+.connected-workspace { width: 100%; min-width: 0; color: var(--ink); font-size: 16px; }
+.connected-tabs { display: flex; gap: 8px; flex-wrap: wrap; padding: 18px 0; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+.connected-tabs button { min-height: 44px; }
+.connected-heading { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 20px; }
+.connected-heading h1 { font: 700 30px/1.3 Manrope, sans-serif; margin: 0; letter-spacing: 0; }
+.connected-heading p { margin: 8px 0; color: var(--muted-dark); }
+.connected-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; }
+.connected-record { border: 1px solid var(--line); border-radius: 8px; padding: 22px; background: var(--paper); min-width: 0; }
+.connected-record h2 { font-size: 20px; margin: 0 0 12px; overflow-wrap: anywhere; }
+.connected-record p { line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.connected-record small, .connected-status { display: block; color: var(--muted-dark); font-size: 14px; margin-bottom: 12px; }
+.connected-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.connected-form { display: grid; gap: 16px; max-width: 850px; margin: 20px 0; }
+.connected-form label { display: grid; gap: 8px; font-weight: 600; }
+.connected-form input, .connected-form select, .connected-form textarea, .connected-search { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 6px; padding: 12px; background: var(--paper); color: var(--ink); font-size: 16px; }
+.connected-form textarea { min-height: 130px; }
+.connected-banner { padding: 16px 0; border-block: 1px solid var(--line); color: var(--muted-dark); margin-bottom: 18px; }
+.connected-error { color: var(--destructive); padding: 16px 0; font-size: 16px; }
+.connected-empty { padding: 40px 0; color: var(--muted-dark); }
+.connected-search { max-width: 450px; margin-bottom: 24px; }
+.connected-admin { max-width: 1500px; margin: auto; padding: 32px; }
+.connected-admin-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); padding: 0 0 24px; }
+.connected-admin-header strong { font-size: 24px; }
+.role-entry-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 20px 0 26px; }
+.role-entry-tabs button { min-height: 50px; height: auto; white-space: normal; line-height: 1.4; }
+.role-entry-tabs button[aria-pressed="true"], .connected-workspace button[data-active="true"] { background: var(--blue); color: var(--paper); }
+.connected-workspace button { color: var(--ink); background: var(--paper); border: 1px solid var(--line); min-height: 44px; }
+.login-screen .input-wrap input, .login-screen .show-password { font-size: 16px; }
+.login-screen .field-label, .login-screen .remember-row, .login-screen .login-heading p, .login-screen .login-help { font-size: 15px; }
+.login-screen .sign-in-button { font-size: 16px; min-height: 52px; }
+.login-screen .login-heading h2 { font-size: 30px; }
+.login-screen { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
+.login-form-wrap { max-width: 520px; }
+.login-heading h2 { font-size: 30px; letter-spacing: 0; }
+.login-heading p, .field-label, .password-label .text-button, .remember-row, .login-help { font-size: 15px; line-height: 1.6; }
+.input-wrap { height: 52px; }
+.input-wrap input, .show-password { font-size: 16px; }
+.sign-in-button, .login-form-wrap .outline-button { min-height: 50px; font-size: 16px; }
+.nav-item { min-height: 48px; font-size: 15px; }
+.brand-lockup strong { font-size: 15px; letter-spacing: 0; white-space: normal; }
+.brand-lockup small, .workspace-label, .role-chip, .breadcrumbs, .breadcrumbs strong, .user-name, .sign-out { font-size: 13px; letter-spacing: 0; }
+.page-content { padding: 30px; max-width: 1550px; }
+@media (max-width: 900px) {
+  body .login-screen { display: block; }
+  body .login-story { display: none; }
+  .login-mobile-brand { display: flex; margin-bottom: 28px; }
+  body .login-panel { padding: 28px 24px; min-height: 100dvh; }
+  .login-form-wrap { margin: 20px 0; }
+}
+@media (max-width: 650px) {
+  .connected-admin, .page-content { padding: 20px 16px; }
+  .connected-heading h1 { font-size: 26px; }
+  .connected-admin-header strong { font-size: 20px; }
+}

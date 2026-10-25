@@ -14,3 +14,5 @@
 - Firebase web config is served by a server function from secrets GOOGLE_API_KEY / GOOGLE_ANALYTICS_MEASUREMENT_ID; init is a browser-only singleton in src/lib/firebase.js.
 - The original app lives in src/legacy and renders client-only at "/" — preserve its design; enhance in place rather than rebuilding.
 - User roles come only from Firestore users/{uid}.role; never let the UI pick a role. Security rules in firestore.rules.
+- ConnectedWorkspace is the live signed-in workspace; legacy prototype dashboards remain reference-only so sample data never masquerades as saved records.
+- Browser-safe clubPolicy holds testable workflow checks; clubService persists shared records, while Firestore rules independently enforce authority and atomic registration counters.

@@ -1,15 +1,25 @@
 # VIT Health Club roadmap (from brief in chat)
 
 ## Updated scope: three uploaded role briefs
-- [ ] Enlarge the existing website's screens, text, and controls; provide distinct Student, Board Member, and Faculty/Admin entry points without self-assigned roles.
+- [x] Enlarge the existing website's screens, text, and controls; provide distinct Student, Board Member, and Faculty/Admin entry points without self-assigned roles.
 - [ ] Implement all three role briefs as connected workspaces sharing Firebase records and controlled review workflows.
 - [ ] Verify cross-role journeys: event proposal to registration and attendance; report submission to correction and faculty decision; request escalation and outcome; verified enrollment and authorized certificates.
+
+### Delivered foundation
+- [x] Shared live screens and services for event proposal/revision/decision/publication, transactional registration, organizer attendance verification, report drafts/evidence/submission/resubmission/version history, request review, student access verification, certificates and announcements.
+- [x] Role/enrollment/capacity/attendance unit tests and desktop/small-screen login checks.
+- [x] Firestore and Storage rule sources plus Firebase setup instructions.
+
+### Blockers and remaining scope
+- [ ] Firebase Authentication enabled, rules deployed, and authorized faculty/test accounts available — requires Firebase project owner setup; authenticated cross-role persistence and rule enforcement cannot yet be verified.
+- [ ] Official EXC requirements, assessment, OD authority, certificate formats, evidence restrictions and retention — requires club/VIT policy.
+- [ ] Remaining operational modules: waitlist/cancellation, connected QR camera scan, calendar, assignments/delegations, volunteers/tasks, targeted notifications, year-end decisions/exports, certificate downloads, MoUs and archives — not implemented; dependent on verified shared Firebase foundation and relevant policies.
 
 - [x] Phase 1: Import existing UI (Student, Board, Faculty) unchanged in look
 - [x] Phase 2a: Firebase init, real email/password login, sign-up (student only), password reset
 - [x] Phase 2b: Role comes from Firestore profile, no role picker; base firestore.rules
 - [ ] Deploy firestore.rules + enable Email/Password auth in Firebase console (user action)
-- [ ] Phase 2c: Remove demo attendance auto-scan; real QR scanner
+- [ ] Phase 2c: Demo auto-scan removed; connected real QR scanner still pending
 - [ ] Phase 3: Move events, members, requests, faculty data to Firestore with live updates
 - [ ] Phase 4: Event approval, registration, waitlist, check-in, OD
 - [ ] Phase 5: EXC reports, uploads, corrections, permissions, certificates, notifications
