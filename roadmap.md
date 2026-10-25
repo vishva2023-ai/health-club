@@ -1,5 +1,10 @@
 # VIT Health Club roadmap (from brief in chat)
 
+## Updated scope: three uploaded role briefs
+- [ ] Enlarge the existing website's screens, text, and controls; provide distinct Student, Board Member, and Faculty/Admin entry points without self-assigned roles.
+- [ ] Implement all three role briefs as connected workspaces sharing Firebase records and controlled review workflows.
+- [ ] Verify cross-role journeys: event proposal to registration and attendance; report submission to correction and faculty decision; request escalation and outcome; verified enrollment and authorized certificates.
+
 - [x] Phase 1: Import existing UI (Student, Board, Faculty) unchanged in look
 - [x] Phase 2a: Firebase init, real email/password login, sign-up (student only), password reset
 - [x] Phase 2b: Role comes from Firestore profile, no role picker; base firestore.rules
