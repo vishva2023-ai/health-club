@@ -1,0 +1,79 @@
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { subscribeRecords, saveRecord, registerForActivity, recordAttendance, submitReport, issueCertificate, uploadEvidence } from '@/services/clubService';
+import { isOperator, isFaculty, isBoard, hasEnrollment, canCoordinate } from '@/services/clubPolicy';
+import './connected.css';
+
+function useRecords(name, filters) {
+  const [state, setState] = useState({ rows: [], loading: true, error: '' });
+  const key = JSON.stringify(filters);
+  useEffect(() => {
+    let stop; let cancelled = false;
+    setState({ rows: [], loading: true, error: '' });
+    subscribeRecords(name, JSON.parse(key), (rows) => { if (!cancelled) setState({ rows, loading: false, error: '' }); }, (e) => { if (!cancelled) setState({ rows: [], loading: false, error: e.message }); })
+      .then((fn) => { if (cancelled) fn(); else stop = fn; }).catch((e) => { if (!cancelled) setState({ rows: [], loading: false, error: e.message }); });
+    return () => { cancelled = true; stop?.(); };
+  }, [name, key]);
+  return state;
+}
+const Field = ({ title, name, type = 'text', required = true, defaultValue }) => <label>{title}<input name={name} type={type} required={required} defaultValue={defaultValue} /></label>;
+const choices = (items) => items.map((item) => <option key={item} value={item}>{item.replaceAll('-', ' ')}</option>);
+
+export default function ConnectedWorkspace({ session, onSignOut, embedded = false }) {
+  const profile = session.profile; const uid = session.user.uid;
+  const staff = isOperator(profile); const board = isBoard(profile); const faculty = isFaculty(profile);
+  const [tab, setTab] = useState('Home'); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false);
+  const [search, setSearch] = useState(''); const [form, setForm] = useState(''); const [selected, setSelected] = useState(null); const [attachments, setAttachments] = useState([]); const [progress, setProgress] = useState(null);
+  const events = useRecords('events', staff ? [] : board ? [['coordinatorIds', uid]] : [['status', 'published']]);
+  // Board queries use array-contains, supplied by the service for coordinatorIds.
+  const registrations = useRecords('registrations', staff ? [] : board ? [['coordinatorIds', uid]] : [['studentId', uid]]);
+  const attendance = useRecords('attendance', staff ? [] : board ? [['coordinatorIds', uid]] : [['studentId', uid]]);
+  const reports = useRecords('reports', staff ? [] : board ? [['coordinatorIds', uid]] : [['studentId', uid]]);
+  const requests = useRecords('requests', staff ? [] : board ? [['coordinatorIds', uid]] : [['studentId', uid]]);
+  const users = useRecords('users', staff ? [] : [['uid', uid]]);
+  const certificates = useRecords('certificates', staff ? [] : [['studentId', uid]]);
+  const announcements = useRecords('announcements', [['status', 'published']]);
+  const tabs = ['Home', 'Events', 'Attendance', 'Reports', 'Requests', ...(staff ? ['Students', 'Announcements'] : []), 'Certificates', 'Profile'];
+  async function act(work, success) { setBusy(true); setError(''); setMessage(''); try { await work(); setMessage(success); setForm(''); setSelected(null); setAttachments([]); } catch (e) { setError(e.message); } finally { setBusy(false); } }
+  const eventName = (id) => events.rows.find((e) => e.id === id)?.title || id;
+  const filtered = (rows) => rows.filter((r) => JSON.stringify(r).toLowerCase().includes(search.toLowerCase()));
+  function review(name, record, status) {
+    setSelected({ ...record, collection: name, nextStatus: status }); setForm('review');
+  }
+  const button = (label, fn, variant = 'outline') => <Button variant={variant} disabled={busy} onClick={fn}>{label}</Button>;
+  const status = (source) => source.loading ? <p className="connected-empty">Loading records…</p> : source.error ? <p className="connected-error" role="alert">Records could not be loaded: {source.error}</p> : source.rows.length === 0 ? <p className="connected-empty">No records yet.</p> : null;
+  async function handleForm(e) {
+    e.preventDefault(); const data = Object.fromEntries(new FormData(e.currentTarget));
+    if (form === 'event') return act(() => saveRecord('events', null, { ...data, capacity: Number(data.capacity), coordinatorIds: [uid], ownerId: uid, status: 'submitted', registrationCount: 0 }), 'Proposal submitted for faculty review.');
+    if (form === 'request') return act(() => saveRecord('requests', null, { ...data, studentId: uid, studentName: profile.name, coordinatorIds: events.rows.find((r) => r.id === data.eventId)?.coordinatorIds || [], status: 'submitted', remarks: '', attachments }), 'Request submitted.');
+    if (form === 'report') return act(() => submitReport({ ...selected, eventId: data.eventId, title: data.title }, data.content, attachments, uid), 'Report submitted for review.');
+    if (form === 'review') return act(() => saveRecord(selected.collection, selected.id, { status: selected.nextStatus, remarks: data.remarks, reviewedBy: uid }), 'Decision saved.');
+    if (form === 'student') return act(() => saveRecord('users', selected.id, { juniorCore: data.juniorCore, excEnrollment: data.excEnrollment, role: data.role, status: data.status, academicYear: data.academicYear }), 'Verified student access updated.');
+    if (form === 'announcement') return act(() => saveRecord('announcements', null, { ...data, status: 'published', authorId: uid }), 'Announcement published.');
+  }
+  const evidence = <label>Supporting files<input type="file" multiple onChange={async (e) => { const files = Array.from(e.target.files || []); setBusy(true); try { for (const file of files) { const item = await uploadEvidence(file, uid, setProgress); setAttachments((old) => [...old, item]); } } catch (err) { setError(err.message); } finally { setBusy(false); setProgress(null); } }} />{progress !== null && <span>Uploading {progress}%</span>}{attachments.map((a) => <a key={a.path} href={a.url} target="_blank" rel="noreferrer">{a.name}</a>)}</label>;
+  return <section className={embedded ? 'connected-workspace' : 'connected-workspace connected-admin'}>
+    {!embedded && <header className="connected-admin-header"><strong>VIT Health Club</strong><span>{profile.name} · {profile.role}</span>{button('Sign out', onSignOut)}</header>}
+    <nav className="connected-tabs" aria-label="Club workspace">{tabs.map((t) => <Button key={t} variant={tab === t ? 'default' : 'ghost'} onClick={() => { setTab(t); setForm(''); setSearch(''); }}>{t}</Button>)}</nav>
+    <div className="connected-heading"><div><h1>{tab === 'Home' ? `${profile.role === 'student' ? 'Student' : board ? 'Board Member' : 'Faculty / Admin'} workspace` : tab}</h1><p>{tab === 'Home' ? `Welcome, ${profile.name || session.user.email}` : ''}</p></div>{tab === 'Events' && (board || staff) && button('Create proposal', () => setForm('event'), 'default')}{tab === 'Requests' && button('New request', () => setForm('request'), 'default')}{tab === 'Reports' && profile.excEnrollment === 'verified' && button('New report', () => { setSelected(null); setAttachments([]); setForm('report'); }, 'default')}{tab === 'Announcements' && staff && button('Publish announcement', () => setForm('announcement'), 'default')}</div>
+    {!hasEnrollment(profile) && !staff && <div className="connected-banner">Membership / EXC verification pending. Faculty must verify your official enrollment before event registration.</div>}
+    {error && <p className="connected-error" role="alert">{error}</p>}{message && <p className="connected-banner" role="status">{message}</p>}
+    {form && <form className="connected-form" onSubmit={handleForm}><h2>{form === 'review' ? `${selected?.nextStatus.replaceAll('-', ' ')}: ${selected?.title || 'Review'}` : form === 'student' ? `Access: ${selected?.name}` : `New ${form}`}</h2>
+      {form === 'event' && <><Field title="Activity title" name="title" /><Field title="Category" name="category" /><label>Description<textarea name="description" required /></label><Field title="Date and time" name="startsAt" type="datetime-local" /><Field title="Venue" name="venue" /><Field title="Capacity" name="capacity" type="number" /><Field title="Registration opens" name="registrationOpens" type="datetime-local" /><Field title="Registration closes" name="registrationCloses" type="datetime-local" /><label>Eligibility<select name="eligibility">{choices(['all', 'junior', 'exc'])}</select></label></>}
+      {(form === 'report' || form === 'request') && <><label>Related activity<select name="eventId" required defaultValue={selected?.eventId}><option value="">Select activity</option>{events.rows.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}</select></label><Field title="Title" name="title" defaultValue={selected?.title} />{form === 'request' && <label>Request type<select name="type">{choices(['attendance-correction', 'membership-query', 'permission', 'activity-proposal', 'certificate-query'])}</select></label>}<label>{form === 'report' ? 'Activity overview and learning outcomes' : 'Explanation'}<textarea name={form === 'report' ? 'content' : 'explanation'} required defaultValue={selected?.content} /></label>{evidence}</>}
+      {form === 'review' && <label>Decision remarks<textarea name="remarks" required /></label>}
+      {form === 'student' && <><Field title="Academic year" name="academicYear" defaultValue={selected?.academicYear} /><label>Junior Core<select name="juniorCore" defaultValue={selected?.juniorCore || 'pending'}>{choices(['pending', 'verified', 'inactive'])}</select></label><label>EXC enrollment<select name="excEnrollment" defaultValue={selected?.excEnrollment || 'pending'}>{choices(['pending', 'verified', 'inactive'])}</select></label><label>Role<select name="role" defaultValue={selected?.role}>{choices(['student', 'board', 'faculty', 'admin'])}</select></label><label>Account status<select name="status" defaultValue={selected?.status}>{choices(['active', 'inactive'])}</select></label></>}
+      {form === 'announcement' && <><Field title="Title" name="title" /><label>Message<textarea name="message" required /></label></>}
+      <div className="connected-actions"><Button disabled={busy} type="submit">{busy ? 'Saving…' : form === 'event' || form === 'report' || form === 'request' ? 'Submit' : 'Confirm'}</Button>{button('Cancel', () => setForm(''))}</div>
+    </form>}
+    {tab !== 'Home' && tab !== 'Profile' && <input className="connected-search" aria-label={`Search ${tab.toLowerCase()}`} placeholder={`Search ${tab.toLowerCase()}`} value={search} onChange={(e) => setSearch(e.target.value)} />}
+    {tab === 'Home' && <><div className="connected-grid">{[['Events', events], ['Attendance', attendance], ['Reports', reports], ['Requests', requests]].map(([title, source]) => <article key={title} className="connected-record"><h2>{title}</h2><p>{source.loading ? 'Loading…' : source.error ? 'Unavailable' : `${source.rows.length} records`}</p>{button(`Open ${title.toLowerCase()}`, () => setTab(title))}</article>)}</div><h2>Club announcements</h2>{status(announcements)}{announcements.rows.map((a) => <article className="connected-banner" key={a.id}><h3>{a.title}</h3><p>{a.message}</p></article>)}</>}
+    {tab === 'Events' && <>{status(events)}<div className="connected-grid">{filtered(events.rows).map((r) => <article className="connected-record" key={r.id}><small>{r.category} · {r.status}</small><h2>{r.title}</h2><p>{r.description}</p><p>{r.startsAt?.replace('T', ' ')} · {r.venue}</p><p>{r.registrationCount || 0} / {r.capacity} registered</p><p>Registration closes: {r.registrationCloses?.replace('T', ' ')}</p>{r.remarks && <p>Faculty remarks: {r.remarks}</p>}<div className="connected-actions">{r.status === 'published' && button(registrations.rows.some((reg) => reg.eventId === r.id && reg.studentId === uid) ? 'Registered' : 'Register', () => act(() => registerForActivity(profile, r.id), 'Registration confirmed.'), 'default')}{faculty && ['submitted', 'resubmitted'].includes(r.status) && <>{button('Approve', () => review('events', r, 'approved'))}{button('Request changes', () => review('events', r, 'changes-requested'))}{button('Reject', () => review('events', r, 'rejected'))}</>}{canCoordinate(profile, uid, r) && r.status === 'approved' && button('Publish', () => act(() => saveRecord('events', r.id, { status: 'published' }), 'Activity published.'))}</div></article>)}</div></>}
+    {tab === 'Attendance' && <>{status(attendance)}<div className="connected-grid">{filtered(attendance.rows).map((r) => <article key={r.id} className="connected-record"><h2>{r.studentName}</h2><p>{eventName(r.eventId)}</p><p>{r.status} · organizer verified</p></article>)}</div>{(board || staff) && <><h2>Registered participants</h2>{status(registrations)}<div className="connected-grid">{filtered(registrations.rows).map((r) => <article key={r.id} className="connected-record"><h2>{r.studentName}</h2><p>{r.regNo} · {eventName(r.eventId)}</p>{button('Verify and record attendance', () => act(() => recordAttendance(profile, r.eventId, r.id), 'Attendance saved.'))}{faculty && button('Issue certificate', () => act(() => issueCertificate(events.rows.find((e) => e.id === r.eventId), r, uid), 'Certificate issued.'))}</article>)}</div></>}</>}
+    {(tab === 'Reports' || tab === 'Requests') && <>{status(tab === 'Reports' ? reports : requests)}<div className="connected-grid">{filtered((tab === 'Reports' ? reports : requests).rows).map((r) => <article key={r.id} className="connected-record"><small>{r.status} {r.version ? `· Version ${r.version}` : ''}</small><h2>{r.title}</h2><p>{r.content || r.explanation}</p>{r.remarks && <p>Reviewer remarks: {r.remarks}</p>}{r.attachments?.map((a) => <p key={a.path}><a href={a.url} target="_blank" rel="noreferrer">{a.name}</a></p>)}<div className="connected-actions">{faculty && ['submitted', 'resubmitted', 'preliminary-checked'].includes(r.status) && <>{button('Approve', () => review(tab.toLowerCase(), r, 'approved'))}{button('Corrections required', () => review(tab.toLowerCase(), r, 'correction-required'))}{button('Reject', () => review(tab.toLowerCase(), r, 'rejected'))}</>}{board && ['submitted', 'resubmitted'].includes(r.status) && button('Forward preliminary check', () => review(tab.toLowerCase(), r, 'preliminary-checked'))}{r.studentId === uid && r.status === 'correction-required' && tab === 'Reports' && button('Correct and resubmit', () => { setSelected(r); setAttachments(r.attachments || []); setForm('report'); })}</div></article>)}</div></>}
+    {tab === 'Students' && <>{status(users)}<div className="connected-grid">{filtered(users.rows).map((r) => <article key={r.id} className="connected-record"><h2>{r.name}</h2><p>{r.regNo} · {r.email}</p><p>{r.role} · {r.status}</p><p>Junior Core: {r.juniorCore || 'pending'}<br />EXC: {r.excEnrollment || 'pending'}</p>{button('Manage verified access', () => { setSelected(r); setForm('student'); })}</article>)}</div></>}
+    {tab === 'Announcements' && <>{status(announcements)}{filtered(announcements.rows).map((r) => <article key={r.id} className="connected-banner"><h2>{r.title}</h2><p>{r.message}</p></article>)}</>}
+    {tab === 'Certificates' && <>{status(certificates)}<div className="connected-grid">{filtered(certificates.rows).map((r) => <article key={r.id} className="connected-record"><small>{r.status}</small><h2>{r.title}</h2><p>{r.recipient}</p><p>Certificate ID: {r.id}</p></article>)}</div></>}
+    {tab === 'Profile' && <div className="connected-record"><h2>{profile.name}</h2><p>{session.user.email}</p><p>{profile.regNo}</p><p>Role: {profile.role}<br />Junior Core: {profile.juniorCore || 'pending'}<br />EXC enrollment: {profile.excEnrollment || 'pending'}<br />Academic year: {profile.academicYear || 'Not configured'}</p>{button('Sign out', onSignOut)}</div>}
+  </section>;
+}
