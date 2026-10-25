@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FacultyModule from "./FacultyModule.jsx";
+import "./style.css";
 import "./faculty.css";
 import { watchAuth, logOut, signIn, signUpStudent, resetPassword, friendlyAuthError, isCampusEmail, ROLE_LABELS } from "@/services/authService";
 
