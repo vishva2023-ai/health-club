@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, setDoc, updateDoc, getDoc, Timestamp, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, getDoc, Timestamp, writeBatch, serverTimestamp } from 'firebase/firestore';
 
 const suite = process.env['FIRESTORE_EMULATOR_HOST'] ? describe : describe.skip;
 suite('Firebase authority and atomic outcomes', () => {
@@ -61,5 +61,53 @@ suite('Firebase authority and atomic outcomes', () => {
   it('Faculty attendance amendments require an approved correction application', async () => {
     const { serverTimestamp } = await import('firebase/firestore');
     await assertFails(setDoc(doc(dbFor('f1'), 'attendance', 'e1_s1'), { eventId: 'e1', studentId: 's1', coordinatorIds: ['b1'], status: 'absent', amendmentApplicationId: 'app1', recordedBy: 'f1', recordedAt: serverTimestamp() }));
+  });
+  it('Student application saves its immutable version and Board notification together', async () => {
+    const db = dbFor('s1'); const batch = writeBatch(db);
+    const data = { type: 'iv-participation', eventId: 'e1', studentId: 's1', title: 'IV application', explanation: 'Request to participate', coordinatorIds: ['b1'], status: 'submitted', version: 1, institutionalStatus: 'pending', fulfillmentStatus: 'pending', updatedBy: 's1', updatedAt: serverTimestamp() };
+    batch.set(doc(db, 'applications', 'new1'), data);
+    batch.set(doc(db, 'applications', 'new1', 'versions', '1'), { ...data, submittedAt: serverTimestamp() });
+    batch.set(doc(db, 'notifications', 'n1'), { recipientId: 'b1', applicationId: 'new1', title: 'Review required', createdAt: serverTimestamp() });
+    await assertSucceeds(batch.commit());
+    await assertSucceeds(getDoc(doc(dbFor('b1'), 'notifications', 'n1')));
+    await assertFails(getDoc(doc(dbFor('b2'), 'notifications', 'n1')));
+  });
+  it('Faculty final approval atomically confirms registration and fills the second seat', async () => {
+    await env.withSecurityRulesDisabled((context) => updateDoc(doc(context.firestore(), 'applications', 'app1'), { status: 'preliminary-checked' }));
+    const db = dbFor('f1'); const batch = writeBatch(db);
+    batch.set(doc(db, 'applications', 'app1', 'decisions', 'd1'), { reviewerId: 'f1', previousStatus: 'preliminary-checked', status: 'approved', remarks: 'Accepted', decidedAt: serverTimestamp() });
+    batch.update(doc(db, 'applications', 'app1'), { status: 'approved', remarks: 'Accepted', reviewedBy: 'f1', latestDecisionId: 'd1', updatedBy: 'f1', updatedAt: serverTimestamp() });
+    batch.set(doc(db, 'registrations', 'e1_s1'), { eventId: 'e1', studentId: 's1', coordinatorIds: ['b1'], status: 'registered', applicationId: 'app1', createdAt: serverTimestamp() });
+    batch.update(doc(db, 'events', 'e1'), { registrationCount: 2, latestApplicationId: 'app1' });
+    await assertSucceeds(batch.commit());
+    const registration = await assertSucceeds(getDoc(doc(dbFor('s1'), 'registrations', 'e1_s1')));
+    if (registration.data()?.status !== 'registered') throw new Error('Registration outcome was not saved');
+    const event = await getDoc(doc(dbFor('s1'), 'events', 'e1'));
+    if (event.data()?.registrationCount !== 2) throw new Error('Capacity count was not incremented');
+  });
+  it('attendance correction final approval actually amends attendance with an audit record', async () => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await updateDoc(doc(db, 'applications', 'app1'), { type: 'attendance-correction', requestedAttendance: 'absent', status: 'preliminary-checked' });
+      await setDoc(doc(db, 'registrations', 'e1_s1'), { eventId: 'e1', studentId: 's1', coordinatorIds: ['b1'], status: 'registered' });
+      await setDoc(doc(db, 'attendance', 'e1_s1'), { eventId: 'e1', studentId: 's1', coordinatorIds: ['b1'], status: 'present' });
+    });
+    const db = dbFor('f1'); const batch = writeBatch(db);
+    batch.set(doc(db, 'applications', 'app1', 'decisions', 'd1'), { reviewerId: 'f1', previousStatus: 'preliminary-checked', status: 'approved', remarks: 'Evidence checked', previousAttendance: 'present', amendedAttendance: 'absent', decidedAt: serverTimestamp() });
+    batch.update(doc(db, 'applications', 'app1'), { status: 'approved', remarks: 'Evidence checked', reviewedBy: 'f1', latestDecisionId: 'd1', updatedBy: 'f1', updatedAt: serverTimestamp() });
+    batch.set(doc(db, 'attendance', 'e1_s1'), { eventId: 'e1', studentId: 's1', coordinatorIds: ['b1'], status: 'absent', amendmentApplicationId: 'app1', recordedBy: 'f1', recordedAt: serverTimestamp() });
+    await assertSucceeds(batch.commit());
+    const attendance = await getDoc(doc(dbFor('s1'), 'attendance', 'e1_s1'));
+    if (attendance.data()?.status !== 'absent') throw new Error('Attendance was not amended');
+    await assertSucceeds(getDoc(doc(dbFor('s1'), 'applications', 'app1', 'decisions', 'd1')));
+  });
+  it('OD confirmation requires its own audited reference after club approval', async () => {
+    await env.withSecurityRulesDisabled((context) => updateDoc(doc(context.firestore(), 'applications', 'app1'), { type: 'od', status: 'approved' }));
+    const db = dbFor('f1'); const batch = writeBatch(db);
+    batch.set(doc(db, 'applications', 'app1', 'decisions', 'confirm1'), { reviewerId: 'f1', previousStatus: 'approved', status: 'confirmed', remarks: 'Institution reference OD-1', decidedAt: serverTimestamp() });
+    batch.update(doc(db, 'applications', 'app1'), { institutionalStatus: 'confirmed', confirmationReference: 'Institution reference OD-1', latestDecisionId: 'confirm1', updatedBy: 'f1', updatedAt: serverTimestamp() });
+    await assertSucceeds(batch.commit());
+    const app = await getDoc(doc(dbFor('s1'), 'applications', 'app1'));
+    if (app.data()?.status !== 'approved' || app.data()?.institutionalStatus !== 'confirmed') throw new Error('OD statuses are not separately stored');
   });
 });

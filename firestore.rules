@@ -110,6 +110,16 @@ service cloud.firestore {
         || (faculty() && request.resource.data.status == 'registered'
           && id == request.resource.data.eventId + '_' + request.resource.data.studentId
           && request.resource.data.coordinatorIds == eventData(request.resource.data.eventId).coordinatorIds
+          && eventData(request.resource.data.eventId).status == 'published'
+          && eventData(request.resource.data.eventId).registrationMode == 'approval'
+          && request.time >= eventData(request.resource.data.eventId).registrationOpenAt
+          && request.time < eventData(request.resource.data.eventId).registrationCloseAt
+          && get(/databases/$(database)/documents/users/$(request.resource.data.studentId)).data.status == 'active'
+          && (get(/databases/$(database)/documents/users/$(request.resource.data.studentId)).data.get('juniorCore', '') == 'verified'
+            || get(/databases/$(database)/documents/users/$(request.resource.data.studentId)).data.get('excEnrollment', '') == 'verified')
+          && (eventData(request.resource.data.eventId).eligibility == 'all'
+            || (eventData(request.resource.data.eventId).eligibility == 'exc' && get(/databases/$(database)/documents/users/$(request.resource.data.studentId)).data.get('excEnrollment', '') == 'verified')
+            || (eventData(request.resource.data.eventId).eligibility == 'junior' && get(/databases/$(database)/documents/users/$(request.resource.data.studentId)).data.get('juniorCore', '') == 'verified'))
           && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.applicationId)).data.status == 'approved'
           && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.applicationId)).data.studentId == request.resource.data.studentId
           && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.applicationId)).data.eventId == request.resource.data.eventId
@@ -133,6 +143,14 @@ service cloud.firestore {
         && !eventData(request.resource.data.eventId).get('attendanceLocked', false)
         && id == request.resource.data.eventId + '_' + request.resource.data.studentId
         && request.resource.data.coordinatorIds == eventData(request.resource.data.eventId).coordinatorIds
+        && (request.resource.data.type != 'attendance-correction' || request.resource.data.requestedAttendance in ['present', 'absent'])
+        && (!(request.resource.data.type in ['participation', 'iv-participation'])
+          || (enrolled() && eventData(request.resource.data.eventId).status == 'published'
+            && eventData(request.resource.data.eventId).registrationMode == 'approval'
+            && request.time >= eventData(request.resource.data.eventId).registrationOpenAt
+            && request.time < eventData(request.resource.data.eventId).registrationCloseAt
+            && eventData(request.resource.data.eventId).registrationCount < eventData(request.resource.data.eventId).capacity
+            && (request.resource.data.type != 'iv-participation' || eventData(request.resource.data.eventId).category == 'IV')))
         && request.resource.data.recordedBy == request.auth.uid && request.resource.data.recordedAt == request.time
         && request.resource.data.status == 'present'
         && get(/databases/$(database)/documents/registrations/$(id)).data.status == 'registered'
