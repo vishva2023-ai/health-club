@@ -85,7 +85,7 @@
 .attendance-ring strong { font-size: 22px; }
 .attendance-ring small { font-size: 12px; text-transform: capitalize; }
 .attendance-manager .connected-grid { margin-top: 22px; }
-.member-photo { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; object-position: top; border-radius: 8px; }
+.member-photo { display: block; width: 100%; aspect-ratio: 4/5; object-fit: contain; object-position: top; border-radius: 8px; }
 @media (max-width: 650px) { .attendance-session { padding: 18px; gap: 14px; grid-template-columns: minmax(0, 1fr) 76px; } .attendance-ring { width: 76px; height: 76px; border-width: 6px; } .attendance-ring strong { font-size: 18px; } .attendance-session h2 { font-size: 18px; } }
 @keyframes club-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .connected-record, .connected-workspace * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

@@ -1,7 +1,8 @@
 # VIT Health Club roadmap (from brief in chat)
 
 ## Updated scope: three uploaded role briefs
-- [ ] Add individual board photos and categorized Student/Board attendance, audited organizer updates, and Board self-attendance; verify locally. GitHub sync status remains user-controlled.
+- [x] Add eleven individual board photos and categorized Student/Board attendance, audited organizer updates, and Board self-attendance; three local logins verified, 21 emulator permission tests passed. GitHub sync status remains user-controlled.
+- [ ] Publish updated attendance rules in Firebase Console — requires project-owner access; GitHub push/sync cannot be verified from chat.
 - [ ] Extended responsibilities received 28 October: complete all role responsibilities; retain the full responsibility matrix and demonstration sequence without dropping unfinished scope.
 - [x] Critical foundation: participation/IV applications, ordered preliminary→Faculty decisions, correction/resubmission, attendance amendments, separate OD confirmation, sponsorship proposals/support, notifications, and participation-record downloads. See RESPONSIBILITY_MATRIX.md for individual verification levels.
 - [x] Appointment-based Board permissions and separation of Admin from academic authority; local permission tests pass.
