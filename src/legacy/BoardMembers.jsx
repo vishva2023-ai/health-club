@@ -1,14 +1,16 @@
 import posterAsset from '@/assets/board-members-2026.jpeg.asset.json';
-import naliniPhoto from '@/assets/board-nalini.jpg.asset.json';
-import yuvarajPhoto from '@/assets/board-yuvaraj.jpg.asset.json';
-import sanjayPhoto from '@/assets/board-sanjay.jpg.asset.json';
-import sahanaPhoto from '@/assets/board-sahana.jpg.asset.json';
-import devadharshiniPhoto from '@/assets/board-devadharshini.jpg.asset.json';
-import jayashreePhoto from '@/assets/board-jayashree.jpg.asset.json';
-import madhulikaPhoto from '@/assets/board-madhulika.jpg.asset.json';
-import vishvaPhoto from '@/assets/board-vishva.jpg.asset.json';
-import deepakPhoto from '@/assets/board-deepak.jpg.asset.json';
-import dhuvarakashPhoto from '@/assets/board-dhuvarakash.jpg.asset.json';
+import naliniPhoto from '@/assets/board-nalini-full.jpg.asset.json';
+import yuvarajPhoto from '@/assets/board-yuvaraj-full.jpg.asset.json';
+import sanjayPhoto from '@/assets/board-sanjay-full.jpg.asset.json';
+import sahanaPhoto from '@/assets/board-sahana-full.jpg.asset.json';
+import devadharshiniPhoto from '@/assets/board-devadharshini-full.jpg.asset.json';
+import jayashreePhoto from '@/assets/board-jayashree-full.jpg.asset.json';
+import madhulikaPhoto from '@/assets/board-madhulika-full.jpg.asset.json';
+import vishvaPhoto from '@/assets/board-vishva-full.jpg.asset.json';
+import deepakPhoto from '@/assets/board-deepak-full.jpg.asset.json';
+import dhuvarakashPhoto from '@/assets/board-dhuvarakash-full.jpg.asset.json';
+
+import pavithraPhoto from '@/assets/board-pavithra-full.jpg.asset.json';
 
 const MEMBERS = [
   ['Nalini E', 'Faculty Coordinator'], ['Yuvaraj R', 'Chairperson'], ['Shri Sanjay Kumar V', 'Vice Chairperson'],
@@ -16,7 +18,7 @@ const MEMBERS = [
   ['G Jayashree', 'Events Head'], ['Madhulika J', 'Design Head'], ['Vishva S A', 'Editorial Head'],
   ['Deepak R', 'Finance Head'], ['Dhuvarakash T', 'Outreach Head'],
 ];
-const PHOTOS = [naliniPhoto.url, yuvarajPhoto.url, sanjayPhoto.url, null, sahanaPhoto.url, devadharshiniPhoto.url, jayashreePhoto.url, madhulikaPhoto.url, vishvaPhoto.url, deepakPhoto.url, dhuvarakashPhoto.url];
+const PHOTOS = [naliniPhoto.url, yuvarajPhoto.url, sanjayPhoto.url, pavithraPhoto.url, sahanaPhoto.url, devadharshiniPhoto.url, jayashreePhoto.url, madhulikaPhoto.url, vishvaPhoto.url, deepakPhoto.url, dhuvarakashPhoto.url];
 const initials = (n) => n.split(' ').filter((w) => w.length > 1).slice(0, 2).map((w) => w[0]).join('');
 
 export default function BoardMembers() {
