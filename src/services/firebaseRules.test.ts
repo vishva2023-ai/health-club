@@ -66,9 +66,9 @@ suite('Firebase authority and atomic outcomes', () => {
   it('Student application saves its immutable version and Board notification together', async () => {
     const db = dbFor('s1'); const batch = writeBatch(db);
     const data = { type: 'iv-participation', eventId: 'e1', studentId: 's1', title: 'IV application', explanation: 'Request to participate', coordinatorIds: ['b1'], status: 'submitted', version: 1, institutionalStatus: 'pending', fulfillmentStatus: 'pending', updatedBy: 's1', updatedAt: serverTimestamp() };
-    batch.set(doc(db, 'applications', 'new1'), data);
-    batch.set(doc(db, 'applications', 'new1', 'versions', '1'), { ...data, submittedAt: serverTimestamp() });
-    batch.set(doc(db, 'notifications', 'n1'), { recipientId: 'b1', applicationId: 'new1', title: 'Review required', createdAt: serverTimestamp() });
+    batch.set(doc(db, 'applications', 'e1_s1_participation'), data);
+    batch.set(doc(db, 'applications', 'e1_s1_participation', 'versions', '1'), { ...data, submittedAt: serverTimestamp() });
+    batch.set(doc(db, 'notifications', 'n1'), { recipientId: 'b1', applicationId: 'e1_s1_participation', title: 'Review required', createdAt: serverTimestamp() });
     await assertSucceeds(batch.commit());
     await assertSucceeds(getDoc(doc(dbFor('b1'), 'notifications', 'n1')));
     await assertFails(getDoc(doc(dbFor('b2'), 'notifications', 'n1')));
