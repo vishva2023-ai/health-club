@@ -1,8 +1,10 @@
 export const isFaculty = (profile) => profile?.role === 'faculty' && profile?.status === 'active';
 export const isOperator = (profile) => ['faculty', 'admin'].includes(profile?.role) && profile?.status === 'active';
-export const isBoard = (profile) => profile?.role === 'board' && profile?.status === 'active';
+export const isBoard = (profile, now = Date.now()) => profile?.role === 'board' && profile?.status === 'active'
+  && Boolean(profile.appointmentStarts && profile.appointmentEnds)
+  && now >= new Date(profile.appointmentStarts).getTime() && now < new Date(profile.appointmentEnds).getTime();
 export const hasEnrollment = (profile) => profile?.juniorCore === 'verified' || profile?.excEnrollment === 'verified';
-export const canCoordinate = (profile, uid, event) => isOperator(profile) || (isBoard(profile) && event?.coordinatorIds?.includes(uid));
+export const canCoordinate = (profile, uid, event) => isFaculty(profile) || (isBoard(profile) && event?.coordinatorIds?.includes(uid));
 export function registrationProblem(profile, event, now = Date.now()) {
   if (profile?.status !== 'active' || !hasEnrollment(profile)) return 'Your membership or EXC enrollment must be verified first.';
   if (event?.status !== 'published') return 'Registration is not open for this activity.';
