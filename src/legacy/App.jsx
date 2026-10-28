@@ -140,7 +140,8 @@ function App() {
   }
 
   if (!profile) {
-    return <div className="login-screen" style={{ display: "grid", placeItems: "center", padding: 24 }}><div className="login-form-wrap"><h2>Account profile missing</h2><p>{session.error ? friendlyAuthError(session.error) : "Your sign-in worked, but no club profile exists for this account yet. Ask a faculty coordinator to set up your profile."}</p><button className="outline-button" onClick={handleSignOut}>Sign out</button></div></div>;
+    const denied = String(session.error?.code || "").includes("permission-denied");
+    return <div className="login-screen" style={{ display: "grid", placeItems: "center", padding: 24 }}><div className="login-form-wrap"><h2>{denied ? "Club records are locked" : session.error ? "Club profile could not load" : "Account profile missing"}</h2><p>{session.error ? friendlyAuthError(session.error) : "Your sign-in worked, but no club profile exists for this account yet. Ask a faculty coordinator to set up your profile."}</p><button className="outline-button" onClick={handleSignOut}>Sign out</button></div></div>;
   }
 
   if (profile.status !== "active" || !ROLE_LABELS[profile.role]) {
