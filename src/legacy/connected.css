@@ -52,3 +52,27 @@
   .connected-heading h1 { font-size: 26px; }
   .connected-admin-header strong { font-size: 20px; }
 }
+
+/* Shared live workspace: role differences come from permissions, not mock UI. */
+.connected-workspace { --blue: #166c58; --paper: #fff; --line: #dce7e1; --ink: #183b32; --muted-dark: #506b61; }
+.connected-admin { background: #f6faf7; min-height: 100dvh; }
+.connected-admin-header { flex-wrap: wrap; padding: 14px 0 22px; }
+.connected-admin-header span { overflow-wrap: anywhere; }
+.connected-tabs { position: sticky; top: 0; z-index: 5; background: #f6faf7ed; backdrop-filter: blur(10px); }
+.connected-tabs button { border-radius: 12px; }
+.connected-record { border-radius: 16px; box-shadow: 0 4px 18px #173b3007; margin-bottom: 16px; animation: club-enter .24s ease both; }
+.connected-record:hover { border-color: #a9cbb9; }
+.connected-heading { margin-top: 14px; }
+.connected-form { padding: 24px; background: white; border: 1px solid var(--line); border-radius: 18px; }
+.connected-form input:focus-visible, .connected-form select:focus-visible, .connected-form textarea:focus-visible, .connected-search:focus-visible { outline: 3px solid #9fd1b8; outline-offset: 2px; }
+.connected-banner { padding: 18px; border: 1px solid #c6dfd0; background: #ebf6ef; border-radius: 12px; }
+.connected-error { background: #fff2f1; color: #9f3030; border: 1px solid #efc7c1; padding: 16px; border-radius: 12px; }
+.connected-workspace button { transition: transform .15s, background .15s; }
+.connected-workspace button:active:not(:disabled) { transform: translateY(1px); }
+.connected-workspace button:disabled { opacity: .55; cursor: not-allowed; }
+.workflow-badge { display: inline-flex; padding: 5px 12px; border-radius: 99px; background: #eaf3ed; color: #235c43; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+.attendance-overview { margin-block: 16px 28px; }
+.attendance-overview > .connected-grid { margin-top: 20px; }
+@keyframes club-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .connected-record, .connected-workspace * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+@media (max-width: 650px) { .connected-form { padding: 18px; } .connected-tabs { flex-wrap: nowrap; overflow-x: auto; padding-block: 12px; } .connected-tabs button { flex: 0 0 auto; } }

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import "./style.css";
 import "./faculty.css";
 import "./connected.css";
-import { watchAuth, logOut, signIn, signUpStudent, resetPassword, friendlyAuthError, isCampusEmail, ROLE_LABELS } from "@/services/authService";
+import { watchAuth, logOut, signIn, signUpStudent, resetPassword, recoverStudentProfile, friendlyAuthError, isCampusEmail, ROLE_LABELS } from "@/services/authService";
 
 const roles = ["Student", "Board member", "Admin / Faculty"];
 const APP_NAME = "Smart Health Club Management";
@@ -141,7 +141,7 @@ function App() {
 
   if (!profile) {
     const denied = String(session.error?.code || "").includes("permission-denied");
-    return <div className="login-screen" style={{ display: "grid", placeItems: "center", padding: 24 }}><div className="login-form-wrap"><h2>{denied ? "Club records are locked" : session.error ? "Club profile could not load" : "Account profile missing"}</h2><p>{session.error ? friendlyAuthError(session.error) : "Your sign-in worked, but no club profile exists for this account yet. Ask a faculty coordinator to set up your profile."}</p><button className="outline-button" onClick={handleSignOut}>Sign out</button></div></div>;
+    return <MissingProfile session={session} denied={denied} onSignOut={handleSignOut} />;
   }
 
   if (profile.status !== "active" || !ROLE_LABELS[profile.role]) {
@@ -209,12 +209,18 @@ function App() {
             <SectionPage role={role} page={page} query={query} registered={registered} events={managedEvents} members={members} autoStartScan={autoStartScan} onAutoStartHandled={() => setAutoStartScan(false)} onOpenEvent={(eventName) => setModal(eventName)} onManageEvent={(eventName) => setModal(`manage-event:${eventName}`)} onRegister={registerForEvent} onCheckIn={checkIn} onNotice={showNotice} onCreate={() => setModal("new-event")} onInvite={() => setModal("new-member")} onExportReport={(rows) => exportAttendanceReport(rows)} />
           )}
         </div>
-        <footer className="app-footer"><span>© 2025 {APP_NAME}</span><span><i /> All systems operational</span><span>Need help? <button onClick={() => showNotice("Our club team will be happy to help.")}>Contact support</button></span></footer>
+        <footer className="app-footer"><span>© {new Date().getFullYear()} {APP_NAME}</span><span><i /> All systems operational</span><span>Need help? <button onClick={() => showNotice("Our club team will be happy to help.")}>Contact support</button></span></footer>
       </main>
       {modal && <Modal key={modal} eventName={modal} role={role} events={managedEvents} onClose={() => setModal("")} onRegister={registerForEvent} onNotice={showNotice} onAddMember={addMember} onSaveEvent={(eventData) => { setManagedEvents((current) => [{ ...eventData, initials: eventData.title.slice(0, 2).toUpperCase(), color: "blue" }, ...current]); showNotice(`${eventData.title} was added to club events.`); setModal(""); }} onUpdateEvent={(originalTitle, eventData) => { setManagedEvents((current) => current.map((item) => item.title === originalTitle ? { ...eventData, initials: eventData.title.slice(0, 2).toUpperCase(), color: item.color } : item)); showNotice(`${eventData.title} was updated.`); setModal(""); }} />}
       {notice && <div className="toast" role="status"><span className="toast-check">✓</span>{notice}<button aria-label="Dismiss notification" onClick={() => setNotice("")}>×</button></div>}
     </div>
   );
+}
+
+function MissingProfile({ session, denied, onSignOut }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  return <main className="connected-admin"><section className="connected-record"><h1>{denied ? 'Club records are locked' : session.error ? 'Club profile could not load' : 'Complete your club profile'}</h1><p>{session.error ? friendlyAuthError(session.error) : 'Your login exists. Create your Student profile below; Faculty must separately verify enrollment or grant Board access.'}</p><p>Signed in as {session.user.email}</p>{error && <p role="alert">{error}</p>}{!session.error && <form className="connected-form" onSubmit={async (e) => { e.preventDefault(); const data = Object.fromEntries(new FormData(e.currentTarget)); setBusy(true); try { await recoverStudentProfile(data); } catch (err) { setError(err.message); } finally { setBusy(false); } }}><label>Full name<input name="name" required defaultValue={session.user.displayName || ''} /></label><label>Register number<input name="regNo" required /></label><Button disabled={busy} type="submit">{busy ? 'Creating…' : 'Create Student profile'}</Button></form>}<Button variant="outline" onClick={onSignOut}>Sign out</Button></section></main>;
 }
 
 function Login({ onNotice, notice }) {
@@ -270,12 +276,12 @@ function Login({ onNotice, notice }) {
           <h1>Feel good.<br /><em>Do more.</em></h1>
           <p>Your campus health club, all in one place. Find your people, move your way, and make every day a little healthier.</p>
           <div className="story-stats">
-            <div><strong>2,400<span>+</span></strong><small>club members</small></div>
-            <div><strong>48</strong><small>events this month</small></div>
-            <div><strong>4.9<span>★</span></strong><small>member rating</small></div>
+            <div><strong>3</strong><small>connected role workspaces</small></div>
+            <div><strong>Live</strong><small>Firebase club records</small></div>
+            <div><strong>EXC</strong><small>activities and reports</small></div>
           </div>
         </div>
-        <div className="quote-card"><span className="quote-mark">“</span><p>It’s the first time staying active has felt like the best part of my day.</p><div><span className="avatar quote-avatar">AS</span><span><strong>Ananya S.</strong><small>Student & club member</small></span><span className="quote-stars">★★★★★</span></div></div>
+        <div className="quote-card"><span className="quote-mark">“</span><p>Discover activities, track participation, and follow each review from submission to decision.</p><div><span className="avatar quote-avatar">AS</span><span><strong>VIT Health Club</strong><small>Student · Board · Faculty</small></span><span className="quote-stars">★★★★★</span></div></div>
         <div className="story-footer"><span>VIT UNIVERSITY</span><span>WELLNESS, TOGETHER.</span></div>
       </section>
       <section className="login-panel">
@@ -303,7 +309,7 @@ function Login({ onNotice, notice }) {
           </form>
           <p className="login-help">Having trouble signing in? <button onClick={() => onNotice("Contact the Health Club desk at wellness@vit.ac.in.")}>Get help</button></p>
         </div>
-        <div className="login-legal"><span>© 2025 {APP_NAME}</span><span>Privacy <b>·</b> Terms</span></div>
+        <div className="login-legal"><span>© {new Date().getFullYear()} {APP_NAME}</span><span>Privacy <b>·</b> Terms</span></div>
       </section>
       {notice && <div className="toast login-toast" role="status"><span className="toast-check">✓</span>{notice}<button aria-label="Dismiss notification" onClick={() => onNotice("")}>×</button></div>}
     </div>
