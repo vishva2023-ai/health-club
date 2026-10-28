@@ -93,6 +93,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /registrations/{id} {
+      allow get: if active() && !exists(/databases/$(database)/documents/registrations/$(id));
       allow read: if active() && (own(resource.data) || assigned(resource.data));
       allow create: if (enrolled() && own(request.resource.data)
         && id == request.resource.data.eventId + '_' + request.auth.uid
@@ -129,6 +130,7 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /attendance/{id} {
+      allow get: if active() && !exists(/databases/$(database)/documents/attendance/$(id));
       function amendment() {
         let app = getAfter(/databases/$(database)/documents/applications/$(request.resource.data.amendmentApplicationId)).data;
         return faculty() && app.type == 'attendance-correction' && app.status == 'approved'
@@ -151,6 +153,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /reports/{id} {
+      allow get: if active() && !exists(/databases/$(database)/documents/reports/$(id));
       allow read: if active() && (own(resource.data) || assigned(resource.data));
       allow create: if enrolled() && userDoc().get('excEnrollment', '') == 'verified'
         && own(request.resource.data) && request.resource.data.status in ['submitted', 'draft']
@@ -228,6 +231,7 @@ service cloud.firestore {
       allow create: if active() && own(request.resource.data) && request.resource.data.status == 'submitted'
         && request.resource.data.version == 1
         && request.resource.data.type in ['participation', 'iv-participation', 'attendance-correction', 'od', 'sponsorship-proposal', 'sponsorship-support']
+        && (!(request.resource.data.type in ['participation', 'iv-participation']) || id == request.resource.data.eventId + '_' + request.auth.uid + '_participation')
         && request.resource.data.title is string && request.resource.data.title.size() > 0
         && request.resource.data.explanation is string && request.resource.data.explanation.size() > 0
         && request.resource.data.institutionalStatus == 'pending' && request.resource.data.fulfillmentStatus == 'pending'

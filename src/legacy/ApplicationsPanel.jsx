@@ -34,7 +34,7 @@ export default function ApplicationsPanel({ profile, uid, events, initialApplica
     e.preventDefault(); const data = Object.fromEntries(new FormData(e.currentTarget));
     if (form === 'review') return act(() => reviewApplication(profile, selected.id, selected.status, selected.nextStatus, data.remarks), 'Decision and related outcome saved.');
     if (form === 'confirmation') return act(() => confirmApplicationOutcome(profile, current, data.remarks), 'Separate confirmation saved.');
-    const draftId = current?.id || crypto.randomUUID();
+    const draftId = current?.id || (['participation', 'iv-participation'].includes(data.type) ? `${data.eventId}_${uid}_participation` : crypto.randomUUID());
     return act(async () => {
       const evidence = [...attachments];
       for (const file of files) { const attachment = await uploadEvidence(file, uid, setProgress, draftId); evidence.push(attachment); setAttachments([...evidence]); }
