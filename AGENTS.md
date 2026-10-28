@@ -20,3 +20,4 @@
 - Application evidence uses authenticated Storage blob reads scoped through its parent application rather than public download-token links, so assigned review authority remains enforceable.
 - Firebase emulator configuration and conditional permission tests live in the project; use the demo project ID for isolated rule checks without touching production data.
 - Local browser emulator testing is opt-in through firebaseEmulator=1 on localhost in development only; never connect published sessions to emulators.
+- Student attendance summaries use only recorded present/absent sessions; event-category filters live in attendancePolicy. Organizer changes require atomic immutable history, while Board self-reports use a separate boardAttendance collection to avoid granting student or academic attendance.
