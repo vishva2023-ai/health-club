@@ -12,7 +12,8 @@ suite('Firebase authority and atomic outcomes', () => {
     await env.clearFirestore();
     await env.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore() as unknown as Firestore;
-      for (const [uid, role] of [['s1', 'student'], ['b1', 'board'], ['b2', 'board'], ['f1', 'faculty'], ['a1', 'admin']]) {
+      const profiles: Array<[string, string]> = [['s1', 'student'], ['b1', 'board'], ['b2', 'board'], ['f1', 'faculty'], ['a1', 'admin']];
+      for (const [uid, role] of profiles) {
         await setDoc(doc(db, 'users', uid), { uid, name: uid, role, status: 'active', juniorCore: 'verified', excEnrollment: 'verified', appointmentOpenAt: Timestamp.fromMillis(0), appointmentCloseAt: Timestamp.fromMillis(Date.now() + 86400000) });
       }
       await setDoc(doc(db, 'events', 'e1'), { status: 'published', category: 'IV', registrationMode: 'approval', facultyReviewerId: 'f1', coordinatorIds: ['b1'], capacity: 2, registrationCount: 1, eligibility: 'all', registrationOpenAt: Timestamp.fromMillis(0), registrationCloseAt: Timestamp.fromMillis(Date.now() + 86400000) });

@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getStorage, connectStorageEmulator } from "firebase/storage";
 import { getFirebaseConfig } from "./firebase-config.functions";
 
 let promise = null;
@@ -14,6 +14,11 @@ export function getFirebase() {
       if (!config.apiKey) throw new Error("Firebase API key is not configured.");
       const app = getApps().length ? getApp() : initializeApp(config);
       const services = { app, auth: getAuth(app), db: getFirestore(app), storage: getStorage(app) };
+      if (import.meta.env.DEV && window.location.hostname === 'localhost' && new URLSearchParams(window.location.search).get('firebaseEmulator') === '1') {
+        connectAuthEmulator(services.auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+        connectFirestoreEmulator(services.db, '127.0.0.1', 8085);
+        connectStorageEmulator(services.storage, '127.0.0.1', 9199);
+      }
       if (config.measurementId) {
         import("firebase/analytics")
           .then(async ({ isSupported, getAnalytics }) => { if (await isSupported()) getAnalytics(app); })
