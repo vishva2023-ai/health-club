@@ -141,6 +141,23 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/registrations/$(id)).data.status == 'registered';
       }
       allow read: if active() && (own(resource.data) || assigned(resource.data));
+      function organizerWrite() {
+        let next = request.resource.data;
+        let event = eventData(next.eventId);
+        let entry = getAfter(/databases/$(database)/documents/attendance/$(id)/organizerHistory/$(next.latestEntryId)).data;
+        return assigned(event) && !event.get('attendanceLocked', false)
+          && id == next.eventId + '_' + next.studentId
+          && next.keys().hasOnly(['eventId', 'studentId', 'studentName', 'regNo', 'coordinatorIds', 'status', 'reason', 'method', 'recordedBy', 'recordedAt', 'latestEntryId'])
+          && next.coordinatorIds == event.coordinatorIds
+          && next.status in ['present', 'absent'] && next.method == 'organizer-verification'
+          && next.recordedBy == request.auth.uid && next.recordedAt == request.time
+          && next.reason is string && next.reason.size() > 0
+          && get(/databases/$(database)/documents/registrations/$(id)).data.status == 'registered'
+          && get(/databases/$(database)/documents/registrations/$(id)).data.eventId == next.eventId
+          && get(/databases/$(database)/documents/registrations/$(id)).data.studentId == next.studentId
+          && entry.status == next.status && entry.reason == next.reason
+          && entry.recordedBy == request.auth.uid && entry.recordedAt == request.time;
+      }
       allow create: if assigned(eventData(request.resource.data.eventId))
         && !eventData(request.resource.data.eventId).get('attendanceLocked', false)
         && id == request.resource.data.eventId + '_' + request.resource.data.studentId
@@ -148,9 +165,52 @@ service cloud.firestore {
         && request.resource.data.recordedBy == request.auth.uid && request.resource.data.recordedAt == request.time
         && request.resource.data.status == 'present'
         && get(/databases/$(database)/documents/registrations/$(id)).data.status == 'registered'
-        || (id == request.resource.data.eventId + '_' + request.resource.data.studentId && amendment());
-      allow update: if amendment() && request.resource.data.studentId == resource.data.studentId && request.resource.data.eventId == resource.data.eventId;
+        || (id == request.resource.data.eventId + '_' + request.resource.data.studentId && amendment())
+        || organizerWrite();
+      allow update: if (amendment() || (resource.data.get('method', '') != 'faculty-amendment' && organizerWrite())) && request.resource.data.studentId == resource.data.studentId && request.resource.data.eventId == resource.data.eventId;
       allow delete: if false;
+      match /organizerHistory/{entryId} {
+        allow read: if active() && (own(get(/databases/$(database)/documents/attendance/$(id)).data) || assigned(get(/databases/$(database)/documents/attendance/$(id)).data));
+        allow create: if assigned(getAfter(/databases/$(database)/documents/attendance/$(id)).data)
+          && request.resource.data.keys().hasOnly(['previousStatus', 'status', 'reason', 'recordedBy', 'recordedAt'])
+          && request.resource.data.recordedBy == request.auth.uid && request.resource.data.recordedAt == request.time
+          && request.resource.data.reason.size() > 0
+          && request.resource.data.previousStatus == (exists(/databases/$(database)/documents/attendance/$(id)) ? get(/databases/$(database)/documents/attendance/$(id)).data.status : 'unrecorded')
+          && getAfter(/databases/$(database)/documents/attendance/$(id)).data.latestEntryId == entryId
+          && getAfter(/databases/$(database)/documents/attendance/$(id)).data.status == request.resource.data.status;
+        allow update, delete: if false;
+      }
+    }
+    match /boardAttendance/{id} {
+      allow get: if currentBoard() && !exists(/databases/$(database)/documents/boardAttendance/$(id));
+      allow read: if faculty() || (currentBoard() && resource.data.memberId == request.auth.uid);
+      function selfWrite() {
+        let next = request.resource.data;
+        let event = eventData(next.eventId);
+        let entry = getAfter(/databases/$(database)/documents/boardAttendance/$(id)/history/$(next.latestEntryId)).data;
+        return currentBoard() && next.memberId == request.auth.uid && id == next.eventId + '_' + request.auth.uid
+          && event.status == 'published' && !event.get('attendanceLocked', false)
+          && next.keys().hasOnly(['eventId', 'memberId', 'memberName', 'status', 'reason', 'method', 'recordedBy', 'recordedAt', 'latestEntryId'])
+          && next.status in ['present', 'absent'] && next.method == 'board-self-reported'
+          && next.recordedBy == request.auth.uid && next.recordedAt == request.time
+          && next.reason is string && next.reason.size() > 0
+          && entry.status == next.status && entry.reason == next.reason
+          && entry.recordedBy == request.auth.uid && entry.recordedAt == request.time;
+      }
+      allow create: if selfWrite();
+      allow update: if selfWrite() && request.resource.data.memberId == resource.data.memberId && request.resource.data.eventId == resource.data.eventId;
+      allow delete: if false;
+      match /history/{entryId} {
+        allow read: if faculty() || (currentBoard() && get(/databases/$(database)/documents/boardAttendance/$(id)).data.memberId == request.auth.uid);
+        allow create: if currentBoard() && getAfter(/databases/$(database)/documents/boardAttendance/$(id)).data.memberId == request.auth.uid
+          && request.resource.data.keys().hasOnly(['previousStatus', 'status', 'reason', 'recordedBy', 'recordedAt'])
+          && request.resource.data.recordedBy == request.auth.uid && request.resource.data.recordedAt == request.time
+          && request.resource.data.reason.size() > 0
+          && request.resource.data.previousStatus == (exists(/databases/$(database)/documents/boardAttendance/$(id)) ? get(/databases/$(database)/documents/boardAttendance/$(id)).data.status : 'unrecorded')
+          && getAfter(/databases/$(database)/documents/boardAttendance/$(id)).data.latestEntryId == entryId
+          && getAfter(/databases/$(database)/documents/boardAttendance/$(id)).data.status == request.resource.data.status;
+        allow update, delete: if false;
+      }
     }
     match /reports/{id} {
       allow get: if active() && !exists(/databases/$(database)/documents/reports/$(id));
