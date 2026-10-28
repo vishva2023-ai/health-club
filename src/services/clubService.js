@@ -12,6 +12,10 @@ export async function subscribeRecords(name, filters, onData, onError) {
 export async function saveRecord(name, id, data) {
   const { db, auth } = await getFirebase();
   if (!auth.currentUser) throw new Error('Your session has ended. Sign in again.');
+  if (name === 'users' && data.role === 'board') {
+    if (!data.appointmentStarts || !data.appointmentEnds || new Date(data.appointmentStarts) >= new Date(data.appointmentEnds)) throw new Error('Board appointments require valid start and end dates.');
+    data = { ...data, appointmentOpenAt: Timestamp.fromDate(new Date(data.appointmentStarts)), appointmentCloseAt: Timestamp.fromDate(new Date(data.appointmentEnds)) };
+  }
   if (name === 'events' && !id) {
     if (Number(data.capacity) < 1 || new Date(data.registrationOpens) >= new Date(data.registrationCloses) || new Date(data.registrationCloses) > new Date(data.startsAt)) throw new Error('Check capacity and dates: registration must open before it closes, and close before the activity starts.');
     data = { ...data, registrationOpenAt: Timestamp.fromDate(new Date(data.registrationOpens)), registrationCloseAt: Timestamp.fromDate(new Date(data.registrationCloses)) };
@@ -168,7 +172,7 @@ export async function reviewApplication(profile, id, expectedStatus, nextStatus,
     }
     if (nextStatus === 'approved' && registrationRef && record.type !== 'attendance-correction') {
       tx.set(registrationRef, { eventId: record.eventId, coordinatorIds: event.coordinatorIds, studentId: record.studentId, studentName: record.studentName, regNo: record.regNo, status: 'registered', applicationId: id, createdAt: serverTimestamp() });
-      tx.update(eventRef, { registrationCount: Number(event.registrationCount || 0) + 1 });
+      tx.update(eventRef, { registrationCount: Number(event.registrationCount || 0) + 1, latestApplicationId: id });
     }
     if (attendanceRef) {
       tx.set(attendanceRef, { eventId: record.eventId, coordinatorIds: event.coordinatorIds, studentId: record.studentId, studentName: record.studentName, regNo: record.regNo, status: record.requestedAttendance, recordedBy: uid, recordedAt: serverTimestamp(), method: 'faculty-amendment', amendmentApplicationId: id });

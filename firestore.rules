@@ -83,9 +83,13 @@ service cloud.firestore {
           && resource.data.get('registrationMode', 'direct') == 'direct'
           && getAfter(/databases/$(database)/documents/registrations/$(id + '_' + request.auth.uid)).data.studentId == request.auth.uid)
         || (faculty() && resource.data.status == 'published'
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registrationCount'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registrationCount', 'latestApplicationId'])
           && request.resource.data.registrationCount == resource.data.registrationCount + 1
-          && request.resource.data.registrationCount <= resource.data.capacity);
+          && request.resource.data.registrationCount <= resource.data.capacity
+          && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.latestApplicationId)).data.status == 'approved'
+          && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.latestApplicationId)).data.eventId == id
+          && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.latestApplicationId)).data.type in ['participation', 'iv-participation']
+          && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.latestApplicationId)).data.updatedAt == request.time);
       allow delete: if false;
     }
     match /registrations/{id} {
@@ -199,7 +203,6 @@ service cloud.firestore {
     }
 
     match /applications/{id} {
-      function versionSaved() { return getAfter(/databases/$(database)/documents/applications/$(id)/versions/$(string(request.resource.data.version))).data.content == request.resource.data.explanation; }
       function outcome() {
         let next = request.resource.data;
         return next.status != 'approved'
