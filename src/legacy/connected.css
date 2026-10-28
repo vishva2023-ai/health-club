@@ -141,3 +141,7 @@
 @keyframes club-blink { 50% { opacity: .2; } }
 @media (max-width: 650px) { .connected-admin-header { margin: -20px -16px 0; padding: 14px 16px; } }
 @media (prefers-reduced-motion: reduce) { .connected-admin-header, .login-story, .member-card, .login-form-wrap, .live-badge i { animation: none !important; } }
+.login-screen[data-entry] .story-content h1 em { color: #fff; text-shadow: 0 4px 24px #0003; }
+.login-screen[data-entry] .story-content .eyebrow, .login-screen[data-entry] .story-content p, .login-screen[data-entry] .story-stats small { color: #fffffff0; }
+.login-screen[data-entry] .story-stats small { font-size: 13px; }
+.login-screen .brand-light strong { font-size: 18px; }

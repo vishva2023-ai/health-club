@@ -269,8 +269,8 @@ function Login({ onNotice, notice }) {
       <section className="login-story">
         <div className="story-glow glow-one" /><div className="story-glow glow-two" />
         <div className="brand-lockup brand-light">
-          <div className="brand-symbol"><Icon name="heart" size={21} /></div>
-          <div><strong>Smart Health Club</strong><small>MANAGEMENT</small></div>
+          <img className="club-logo" src={logoAsset.url} alt="Health Club logo" />
+          <div><strong>VIT Health Club</strong><small>HEALTHY HABIT · HEALTHY WORLD</small></div>
         </div>
         <div className="story-content">
           <div className="eyebrow"><span /> YOUR CAMPUS. YOUR WELLNESS.</div>
@@ -287,7 +287,7 @@ function Login({ onNotice, notice }) {
       </section>
       <section className="login-panel">
         <div className="login-mobile-brand brand-lockup">
-          <img className="club-logo" src={logoAsset.url} alt="Health Club logo" /><div><strong>Smart Health Club</strong><small>MANAGEMENT</small></div>
+          <img className="club-logo" src={logoAsset.url} alt="Health Club logo" /><div><strong>VIT Health Club</strong><small>HEALTHY HABIT · HEALTHY WORLD</small></div>
         </div>
         <div className="login-form-wrap">
           <div className="login-heading"><span className="welcome-icon"><Icon name="heart" size={19} /></span><div className="eyebrow">VIT HEALTH CLUB</div><h2>{isSignUp ? "Create your student account" : `${entry} login`}</h2><p>{isSignUp ? "Membership and course enrollment require faculty verification." : "Access is based on your official club appointment."}</p></div>
