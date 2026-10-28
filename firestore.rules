@@ -8,8 +8,11 @@ service cloud.firestore {
     function active() { return signedIn() && userDoc().status == 'active'; }
     function isStaff() { return active() && role() in ['faculty', 'admin']; }
     function faculty() { return active() && role() == 'faculty'; }
+    function currentBoard() { return active() && role() == 'board'
+      && userDoc().get('appointmentOpenAt', null) is timestamp && userDoc().get('appointmentCloseAt', null) is timestamp
+      && request.time >= userDoc().appointmentOpenAt && request.time < userDoc().appointmentCloseAt; }
     function enrolled() { return active() && (userDoc().get('juniorCore', '') == 'verified' || userDoc().get('excEnrollment', '') == 'verified'); }
-    function assigned(data) { return isStaff() || (active() && role() == 'board' && request.auth.uid in data.coordinatorIds); }
+    function assigned(data) { return faculty() || (currentBoard() && request.auth.uid in data.coordinatorIds); }
     function eventData(id) { return get(/databases/$(database)/documents/events/$(id)).data; }
     function own(data) { return signedIn() && data.studentId == request.auth.uid; }
     function isBoard() { return role() == 'board' || isStaff(); }
@@ -25,10 +28,13 @@ service cloud.firestore {
       // Users may edit their own profile but never their role/status.
       allow update: if (signedIn() && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'preferences']))
-        || (isStaff() && request.resource.data.uid == resource.data.uid
+        || (isStaff() && uid != request.auth.uid && request.resource.data.uid == resource.data.uid
+          && (faculty() || request.resource.data.role == resource.data.role)
+          && (faculty() || request.resource.data.juniorCore == resource.data.get('juniorCore', null))
+          && (faculty() || request.resource.data.excEnrollment == resource.data.get('excEnrollment', null))
           && request.resource.data.role in ['student', 'board', 'faculty', 'admin']
           && request.resource.data.status in ['active', 'inactive']
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['juniorCore', 'excEnrollment', 'role', 'status', 'academicYear', 'updatedAt', 'updatedBy']));
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['juniorCore', 'excEnrollment', 'role', 'status', 'academicYear', 'appointmentStarts', 'appointmentEnds', 'appointmentOpenAt', 'appointmentCloseAt', 'updatedAt', 'updatedBy']));
       allow delete: if false;
     }
 
@@ -43,17 +49,21 @@ service cloud.firestore {
         && request.resource.data.remarks.size() > 0
         && getAfter(/databases/$(database)/documents/$(collectionName)/$(id)).data.status == request.resource.data.status
         && ((faculty() && request.resource.data.status in ['approved', 'changes-requested', 'correction-required', 'rejected'])
-          || (role() == 'board' && collectionName in ['reports', 'requests'] && request.resource.data.status == 'preliminary-checked'));
+          || (currentBoard() && collectionName in ['reports', 'requests'] && request.resource.data.status == 'preliminary-checked'));
       allow update, delete: if false;
     }
 
     match /events/{id} {
       allow read: if active() && (resource.data.status == 'published' || assigned(resource.data));
-      allow create: if active() && role() in ['board', 'faculty', 'admin']
+      allow create: if (currentBoard() || faculty())
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.coordinatorIds == [request.auth.uid]
         && request.resource.data.status == 'submitted'
         && request.resource.data.capacity is int && request.resource.data.capacity > 0
+        && request.resource.data.registrationOpenAt is timestamp && request.resource.data.registrationCloseAt is timestamp
+        && request.resource.data.registrationOpenAt < request.resource.data.registrationCloseAt
+        && request.resource.data.registrationMode in ['direct', 'approval']
+        && get(/databases/$(database)/documents/users/$(request.resource.data.facultyReviewerId)).data.role == 'faculty'
         && request.resource.data.registrationCount == 0;
       allow update: if
         (faculty() && resource.data.status in ['submitted', 'resubmitted']
@@ -70,12 +80,17 @@ service cloud.firestore {
           && request.resource.data.registrationCount == resource.data.registrationCount + 1
           && request.resource.data.registrationCount <= resource.data.capacity
           && !exists(/databases/$(database)/documents/registrations/$(id + '_' + request.auth.uid))
-          && getAfter(/databases/$(database)/documents/registrations/$(id + '_' + request.auth.uid)).data.studentId == request.auth.uid);
+          && resource.data.get('registrationMode', 'direct') == 'direct'
+          && getAfter(/databases/$(database)/documents/registrations/$(id + '_' + request.auth.uid)).data.studentId == request.auth.uid)
+        || (faculty() && resource.data.status == 'published'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registrationCount'])
+          && request.resource.data.registrationCount == resource.data.registrationCount + 1
+          && request.resource.data.registrationCount <= resource.data.capacity);
       allow delete: if false;
     }
     match /registrations/{id} {
       allow read: if active() && (own(resource.data) || assigned(resource.data));
-      allow create: if enrolled() && own(request.resource.data)
+      allow create: if (enrolled() && own(request.resource.data)
         && id == request.resource.data.eventId + '_' + request.auth.uid
         && request.resource.data.status == 'registered'
         && request.resource.data.coordinatorIds == eventData(request.resource.data.eventId).coordinatorIds
@@ -86,10 +101,29 @@ service cloud.firestore {
           || (eventData(request.resource.data.eventId).eligibility == 'exc' && userDoc().get('excEnrollment', '') == 'verified')
           || (eventData(request.resource.data.eventId).eligibility == 'junior' && userDoc().get('juniorCore', '') == 'verified'))
         && getAfter(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.registrationCount == eventData(request.resource.data.eventId).registrationCount + 1
-        && getAfter(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.registrationCount <= eventData(request.resource.data.eventId).capacity;
+        && eventData(request.resource.data.eventId).get('registrationMode', 'direct') == 'direct'
+        && getAfter(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.registrationCount <= eventData(request.resource.data.eventId).capacity)
+        || (faculty() && request.resource.data.status == 'registered'
+          && id == request.resource.data.eventId + '_' + request.resource.data.studentId
+          && request.resource.data.coordinatorIds == eventData(request.resource.data.eventId).coordinatorIds
+          && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.applicationId)).data.status == 'approved'
+          && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.applicationId)).data.studentId == request.resource.data.studentId
+          && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.applicationId)).data.eventId == request.resource.data.eventId
+          && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.applicationId)).data.type in ['participation', 'iv-participation']
+          && getAfter(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.registrationCount == eventData(request.resource.data.eventId).registrationCount + 1
+          && getAfter(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.registrationCount <= eventData(request.resource.data.eventId).capacity);
       allow update, delete: if false;
     }
     match /attendance/{id} {
+      function amendment() {
+        let app = getAfter(/databases/$(database)/documents/applications/$(request.resource.data.amendmentApplicationId)).data;
+        return faculty() && app.type == 'attendance-correction' && app.status == 'approved'
+          && app.studentId == request.resource.data.studentId && app.eventId == request.resource.data.eventId
+          && app.requestedAttendance == request.resource.data.status && app.updatedAt == request.time
+          && request.resource.data.recordedBy == request.auth.uid && request.resource.data.recordedAt == request.time
+          && request.resource.data.coordinatorIds == eventData(request.resource.data.eventId).coordinatorIds
+          && get(/databases/$(database)/documents/registrations/$(id)).data.status == 'registered';
+      }
       allow read: if active() && (own(resource.data) || assigned(resource.data));
       allow create: if assigned(eventData(request.resource.data.eventId))
         && !eventData(request.resource.data.eventId).get('attendanceLocked', false)
@@ -97,8 +131,10 @@ service cloud.firestore {
         && request.resource.data.coordinatorIds == eventData(request.resource.data.eventId).coordinatorIds
         && request.resource.data.recordedBy == request.auth.uid && request.resource.data.recordedAt == request.time
         && request.resource.data.status == 'present'
-        && get(/databases/$(database)/documents/registrations/$(id)).data.status == 'registered';
-      allow update, delete: if false;
+        && get(/databases/$(database)/documents/registrations/$(id)).data.status == 'registered'
+        || (id == request.resource.data.eventId + '_' + request.resource.data.studentId && amendment());
+      allow update: if amendment() && request.resource.data.studentId == resource.data.studentId && request.resource.data.eventId == resource.data.eventId;
+      allow delete: if false;
     }
     match /reports/{id} {
       allow read: if active() && (own(resource.data) || assigned(resource.data));
@@ -117,8 +153,8 @@ service cloud.firestore {
           && getAfter(/databases/$(database)/documents/reports/$(id)/versions/$(string(request.resource.data.version))).data.version == request.resource.data.version
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'attachments', 'title', 'status', 'version', 'updatedAt', 'updatedBy']))
         || (assigned(resource.data) && resource.data.status in ['submitted', 'resubmitted', 'preliminary-checked']
-          && ((faculty() && request.resource.data.status in ['approved', 'rejected', 'correction-required'])
-            || (role() == 'board' && request.resource.data.status == 'preliminary-checked'))
+          && ((faculty() && resource.data.status == 'preliminary-checked' && request.resource.data.status in ['approved', 'rejected', 'correction-required'])
+            || (currentBoard() && resource.data.status in ['submitted', 'resubmitted'] && request.resource.data.status == 'preliminary-checked'))
           && request.resource.data.reviewedBy == request.auth.uid
           && request.resource.data.remarks.size() > 0
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'remarks', 'reviewedBy', 'updatedAt', 'updatedBy']));
@@ -142,7 +178,8 @@ service cloud.firestore {
         && request.resource.data.remarks == ''
         && request.resource.data.coordinatorIds == eventData(request.resource.data.eventId).coordinatorIds;
       allow update: if assigned(resource.data) && resource.data.status in ['submitted', 'preliminary-checked']
-        && ((faculty() && request.resource.data.status in ['approved', 'rejected', 'correction-required']) || (role() == 'board' && request.resource.data.status == 'preliminary-checked'))
+        && ((faculty() && resource.data.status == 'preliminary-checked' && request.resource.data.status in ['approved', 'rejected', 'correction-required']
+          && !(resource.data.type == 'attendance-correction' && request.resource.data.status == 'approved')) || (currentBoard() && resource.data.status == 'submitted' && request.resource.data.status == 'preliminary-checked'))
         && request.resource.data.reviewedBy == request.auth.uid && request.resource.data.remarks.size() > 0
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'remarks', 'reviewedBy', 'updatedAt', 'updatedBy']);
       allow delete: if false;
@@ -157,10 +194,80 @@ service cloud.firestore {
       allow create: if faculty() && request.resource.data.issuedBy == request.auth.uid
         && request.resource.data.status == 'issued' && request.resource.data.issuedAt == request.time
         && id == request.resource.data.eventId + '_' + request.resource.data.studentId
-        && exists(/databases/$(database)/documents/attendance/$(id));
+        && get(/databases/$(database)/documents/attendance/$(id)).data.status == 'present';
       allow update, delete: if false;
     }
 
+    match /applications/{id} {
+      function versionSaved() { return getAfter(/databases/$(database)/documents/applications/$(id)/versions/$(string(request.resource.data.version))).data.content == request.resource.data.explanation; }
+      function outcome() {
+        let next = request.resource.data;
+        return next.status != 'approved'
+          || (!(resource.data.type in ['participation', 'iv-participation', 'attendance-correction']))
+          || (resource.data.type in ['participation', 'iv-participation']
+            && getAfter(/databases/$(database)/documents/registrations/$(resource.data.eventId + '_' + resource.data.studentId)).data.applicationId == id
+            && getAfter(/databases/$(database)/documents/events/$(resource.data.eventId)).data.registrationCount <= eventData(resource.data.eventId).capacity)
+          || (resource.data.type == 'attendance-correction'
+            && getAfter(/databases/$(database)/documents/attendance/$(resource.data.eventId + '_' + resource.data.studentId)).data.amendmentApplicationId == id);
+      }
+      allow read: if active() && (own(resource.data) || assigned(resource.data));
+      allow create: if active() && own(request.resource.data) && request.resource.data.status == 'submitted'
+        && request.resource.data.version == 1
+        && request.resource.data.type in ['participation', 'iv-participation', 'attendance-correction', 'od', 'sponsorship-proposal', 'sponsorship-support']
+        && request.resource.data.title is string && request.resource.data.title.size() > 0
+        && request.resource.data.explanation is string && request.resource.data.explanation.size() > 0
+        && request.resource.data.institutionalStatus == 'pending' && request.resource.data.fulfillmentStatus == 'pending'
+        && request.resource.data.coordinatorIds == eventData(request.resource.data.eventId).coordinatorIds
+        && (request.resource.data.type != 'sponsorship-proposal' || assigned(eventData(request.resource.data.eventId)))
+        && getAfter(/databases/$(database)/documents/applications/$(id)/versions/1).data.explanation == request.resource.data.explanation;
+      allow update: if
+        (active() && own(resource.data) && resource.data.status == 'correction-required'
+          && request.resource.data.status == 'resubmitted' && request.resource.data.version == resource.data.version + 1
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'explanation', 'requestedAttendance', 'attachments', 'status', 'version', 'updatedAt', 'updatedBy'])
+          && getAfter(/databases/$(database)/documents/applications/$(id)/versions/$(string(request.resource.data.version))).data.explanation == request.resource.data.explanation)
+        || (assigned(resource.data) && request.resource.data.remarks is string && request.resource.data.remarks.size() > 0
+          && request.resource.data.reviewedBy == request.auth.uid && request.resource.data.updatedAt == request.time
+          && ((resource.data.status in ['submitted', 'resubmitted'] && request.resource.data.status == 'preliminary-checked')
+            || (faculty() && resource.data.status == 'preliminary-checked' && request.resource.data.status in ['approved', 'rejected', 'correction-required']))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'remarks', 'reviewedBy', 'latestDecisionId', 'updatedBy', 'updatedAt'])
+          && getAfter(/databases/$(database)/documents/applications/$(id)/decisions/$(request.resource.data.latestDecisionId)).data.status == request.resource.data.status && outcome())
+        || (faculty() && resource.data.status == 'approved' && request.resource.data.updatedAt == request.time
+          && request.resource.data.confirmationReference is string && request.resource.data.confirmationReference.size() > 0
+          && ((resource.data.type == 'od' && resource.data.institutionalStatus == 'pending' && request.resource.data.institutionalStatus == 'confirmed'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['institutionalStatus', 'confirmationReference', 'latestDecisionId', 'updatedBy', 'updatedAt']))
+            || (resource.data.type == 'sponsorship-support' && resource.data.fulfillmentStatus == 'pending' && request.resource.data.fulfillmentStatus == 'fulfilled'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fulfillmentStatus', 'confirmationReference', 'latestDecisionId', 'updatedBy', 'updatedAt'])))
+          && getAfter(/databases/$(database)/documents/applications/$(id)/decisions/$(request.resource.data.latestDecisionId)).data.reviewerId == request.auth.uid);
+      allow delete: if false;
+      match /versions/{version} {
+        allow read: if active() && (own(get(/databases/$(database)/documents/applications/$(id)).data) || assigned(get(/databases/$(database)/documents/applications/$(id)).data));
+        allow create: if active() && own(request.resource.data) && version == string(request.resource.data.version)
+          && request.resource.data.submittedAt == request.time
+          && getAfter(/databases/$(database)/documents/applications/$(id)).data.studentId == request.auth.uid
+          && getAfter(/databases/$(database)/documents/applications/$(id)).data.version == request.resource.data.version
+          && getAfter(/databases/$(database)/documents/applications/$(id)).data.explanation == request.resource.data.explanation;
+        allow update, delete: if false;
+      }
+      match /decisions/{decision} {
+        allow read: if active() && (own(get(/databases/$(database)/documents/applications/$(id)).data) || assigned(get(/databases/$(database)/documents/applications/$(id)).data));
+        allow create: if assigned(get(/databases/$(database)/documents/applications/$(id)).data)
+          && request.resource.data.reviewerId == request.auth.uid && request.resource.data.decidedAt == request.time
+          && request.resource.data.remarks.size() > 0
+          && getAfter(/databases/$(database)/documents/applications/$(id)).data.latestDecisionId == decision
+          && (faculty() || request.resource.data.status == 'preliminary-checked');
+        allow update, delete: if false;
+      }
+    }
+    match /notifications/{id} {
+      allow read: if active() && resource.data.recipientId == request.auth.uid;
+      allow create: if active() && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.applicationId)).data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/applications/$(request.resource.data.applicationId)).data.updatedBy == request.auth.uid
+        && (request.resource.data.recipientId == getAfter(/databases/$(database)/documents/applications/$(request.resource.data.applicationId)).data.studentId
+          || request.resource.data.recipientId in getAfter(/databases/$(database)/documents/applications/$(request.resource.data.applicationId)).data.coordinatorIds
+          || request.resource.data.recipientId == eventData(getAfter(/databases/$(database)/documents/applications/$(request.resource.data.applicationId)).data.eventId).facultyReviewerId);
+      allow update, delete: if false;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

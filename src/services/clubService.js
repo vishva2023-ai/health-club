@@ -88,7 +88,7 @@ export async function reviseEvent(event, data) {
 }
 export async function readHistory(collectionName, id, onData, onError) {
   const { db } = await getFirebase();
-  return onSnapshot(collection(db, collectionName, id, collectionName === 'reports' ? 'versions' : 'decisions'), (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() }))), onError);
+  return onSnapshot(collection(db, collectionName, id, collectionName === 'reports' ? 'versions' : 'decisions'), (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.version || a.decidedAt?.toMillis?.() || 0) - (b.version || b.decidedAt?.toMillis?.() || 0))), onError);
 }
 export async function issueCertificate(event, student, uid) {
   const { db } = await getFirebase();
@@ -96,9 +96,10 @@ export async function issueCertificate(event, student, uid) {
   if (!attendance.exists() || attendance.data().status !== 'present') throw new Error('Verified present attendance is required before issuance.');
   await setDoc(doc(db, 'certificates', `${event.id}_${student.studentId}`), { eventId: event.id, studentId: student.studentId, title: event.title, recipient: student.studentName, issuedBy: uid, issuedAt: serverTimestamp(), status: 'issued' });
 }
-export async function uploadEvidence(file, uid, onProgress) {
+export async function uploadEvidence(file, uid, onProgress, applicationId) {
   const { storage } = await getFirebase();
-  const object = ref(storage, `evidence/${uid}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
+  const folder = applicationId ? `applicationEvidence/${applicationId}/${uid}` : `evidence/${uid}`;
+  const object = ref(storage, `${folder}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
   return new Promise((resolve, reject) => {
     const task = uploadBytesResumable(object, file);
     task.on('state_changed', (snap) => onProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)), reject, async () => {
@@ -118,10 +119,10 @@ export async function openEvidence(attachment) {
 function notification(tx, db, recipientId, applicationId, title) {
   tx.set(doc(collection(db, 'notifications')), { recipientId, applicationId, title, createdAt: serverTimestamp() });
 }
-export async function submitApplication(profile, data, attachments, existingId) {
+export async function submitApplication(profile, data, attachments, existingId, draftId) {
   const { db, auth } = await getFirebase(); const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Sign in again.');
-  const id = existingId || (['participation', 'iv-participation'].includes(data.type) ? `${data.eventId}_${uid}_participation` : doc(collection(db, 'applications')).id);
+  const id = existingId || draftId || doc(collection(db, 'applications')).id;
   return runTransaction(db, async (tx) => {
     const target = doc(db, 'applications', id);
     const [previous, eventSnap] = await Promise.all([tx.get(target), tx.get(doc(db, 'events', data.eventId))]);
