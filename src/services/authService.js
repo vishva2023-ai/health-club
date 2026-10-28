@@ -3,7 +3,7 @@ import {
   sendEmailVerification, signOut, onAuthStateChanged, setPersistence,
   browserLocalPersistence, browserSessionPersistence, updateProfile,
 } from "firebase/auth";
-import { doc, onSnapshot, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, serverTimestamp, runTransaction } from "firebase/firestore";
 import { getFirebase } from "@/lib/firebase";
 
 // Firestore role values -> labels used by the existing UI.
@@ -40,17 +40,33 @@ export async function logOut() {
   return signOut(auth);
 }
 
+// A login account can exist without its club profile (for example after a
+// console-created Auth account). Recovery never assigns operational roles.
+export async function recoverStudentProfile({ name, regNo }) {
+  const { auth, db } = await getFirebase();
+  const user = auth.currentUser;
+  if (!user || !isCampusEmail(user.email || '')) throw new Error('Sign in with your VIT account first.');
+  if (!name?.trim() || !regNo?.trim()) throw new Error('Name and register number are required.');
+  return runTransaction(db, async (tx) => {
+    const target = doc(db, 'users', user.uid);
+    if ((await tx.get(target)).exists()) throw new Error('A profile already exists. Refresh to open it.');
+    tx.set(target, { uid: user.uid, name: name.trim(), email: user.email.toLowerCase(), regNo: regNo.trim().toUpperCase(), role: 'student', status: 'active', createdAt: serverTimestamp() });
+  });
+}
+
 export async function watchAuth(callback) {
   const { auth, db } = await getFirebase();
   let stopProfile = () => {};
+  let generation = 0;
   const stopAuth = onAuthStateChanged(auth, (user) => {
+    const current = ++generation;
     stopProfile();
     if (!user) { callback(null); return; }
     stopProfile = onSnapshot(doc(db, "users", user.uid), (snap) => {
-      callback({ user, profile: snap.exists() ? snap.data() : null });
-    }, (error) => callback({ user, profile: null, error }));
+      if (current === generation) callback({ user, profile: snap.exists() ? snap.data() : null });
+    }, (error) => { if (current === generation) callback({ user, profile: null, error }); });
   });
-  return () => { stopAuth(); stopProfile(); };
+  return () => { generation++; stopAuth(); stopProfile(); };
 }
 
 export function friendlyAuthError(error) {
@@ -61,6 +77,6 @@ export function friendlyAuthError(error) {
   if (code.includes("too-many-requests")) return "Too many attempts. Please wait a moment and try again.";
   if (code.includes("operation-not-allowed")) return "Email sign-in is not enabled in the Firebase project yet.";
   if (code.includes("api-key")) return "The Firebase API key was rejected. Please check the key.";
-  if (code.includes("permission-denied")) return "Sign-in worked, but the club database refused access. The website's security rules have not been published in Firebase yet.";
+  if (code.includes("permission-denied")) return "Sign-in worked, but Firestore denied this operation. Check the configured project, published rules, profile path, and assigned permissions.";
   return error?.message || "Something went wrong. Please try again.";
 }

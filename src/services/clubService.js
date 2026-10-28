@@ -92,10 +92,17 @@ export async function reviseEvent(event, data) {
 }
 export async function readHistory(collectionName, id, onData, onError) {
   const { db } = await getFirebase();
-  return onSnapshot(collection(db, collectionName, id, collectionName === 'reports' ? 'versions' : 'decisions'), (snap) => onData(snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.version || a.decidedAt?.toMillis?.() || 0) - (b.version || b.decidedAt?.toMillis?.() || 0))), onError);
+  const sources = collectionName === 'reports' || collectionName === 'applications' ? ['versions', 'decisions'] : ['decisions'];
+  const results = {};
+  const stops = sources.map(source => onSnapshot(collection(db, collectionName, id, source), (snap) => {
+    results[source] = snap.docs.map(d => ({ ...d.data(), id: `${source}-${d.id}`, historyType: source }));
+    if (sources.every(key => results[key])) onData(Object.values(results).flat().sort((a, b) => (a.submittedAt?.toMillis?.() || a.decidedAt?.toMillis?.() || 0) - (b.submittedAt?.toMillis?.() || b.decidedAt?.toMillis?.() || 0)));
+  }, onError));
+  return () => stops.forEach(stop => stop());
 }
 export async function issueCertificate(event, student, uid) {
   const { db } = await getFirebase();
+  if (!event) throw new Error('The related activity is unavailable.');
   const attendance = await getDoc(doc(db, 'attendance', `${event.id}_${student.studentId}`));
   if (!attendance.exists() || attendance.data().status !== 'present') throw new Error('Verified present attendance is required before issuance.');
   await setDoc(doc(db, 'certificates', `${event.id}_${student.studentId}`), { eventId: event.id, studentId: student.studentId, title: event.title, recipient: student.studentName, issuedBy: uid, issuedAt: serverTimestamp(), status: 'issued' });
