@@ -4,6 +4,7 @@ export const WORKFLOW_TYPES = ['participation', 'iv-participation', 'attendance-
 export const toMillis = (value) => value?.toMillis?.() ?? (value?.seconds ? value.seconds * 1000 : new Date(value).getTime());
 export function reviewProblem(profile, uid, record, nextStatus, remarks, event) {
   if (!remarks?.trim()) return 'Decision remarks are required.';
+  if (nextStatus !== 'preliminary-checked' && !isFaculty(profile)) return 'Only Faculty can make the final decision.';
   if (!canCoordinate(profile, uid, event)) return 'Only currently assigned reviewers can act.';
   if (nextStatus === 'preliminary-checked') {
     if (!['submitted', 'resubmitted'].includes(record.status)) return 'This record is no longer awaiting preliminary review.';
