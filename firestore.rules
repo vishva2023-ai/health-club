@@ -224,6 +224,7 @@ service cloud.firestore {
             && getAfter(/databases/$(database)/documents/attendance/$(resource.data.eventId + '_' + resource.data.studentId)).data.amendmentApplicationId == id);
       }
       allow read: if active() && (own(resource.data) || assigned(resource.data));
+      allow get: if active() && !exists(/databases/$(database)/documents/applications/$(id));
       allow create: if active() && own(request.resource.data) && request.resource.data.status == 'submitted'
         && request.resource.data.version == 1
         && request.resource.data.type in ['participation', 'iv-participation', 'attendance-correction', 'od', 'sponsorship-proposal', 'sponsorship-support']
