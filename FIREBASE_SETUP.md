@@ -10,6 +10,10 @@ The application uses the existing Firebase project `health-club-ef145`.
 6. Use three real test accounts to check: Board submits proposal, Faculty approves, Board publishes, verified Student registers, Board records attendance, Student submits EXC report, Faculty requests corrections and reviews resubmission.
 
 ## Current delivery boundaries
+- New Applications and Notifications screens provide participation/IV approval, correction/resubmission, sponsor proposals/support, audited attendance amendments, and separate institutional OD/fulfillment confirmations. Deploy the updated rules before using them with real accounts.
+- Board profiles now need appointmentStarts/appointmentEnds and matching appointmentOpenAt/appointmentCloseAt timestamps; Faculty's access form writes them. Existing appointments must be reconciled—no automatic invented appointment periods.
+- Event proposals require an assigned Faculty account ID and direct/approval registration mode. Official certificate format is still unconfigured; the download is explicitly a club participation record, not academic completion.
+- Local testing: 36 tests pass; three isolated browser sessions completed the participation correction-to-registration journey. This is emulator verification, not verification against your hosted Firebase project. See RESPONSIBILITY_MATRIX.md for scope and remaining work.
 
 Shared Firebase screens are implemented for events, registrations, organizer attendance verification, reports/evidence, review decisions, student requests, official enrollment/roles, certificates, and club announcements. Sample dashboards are no longer used as the signed-in experience.
 
