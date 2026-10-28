@@ -61,6 +61,6 @@ export function friendlyAuthError(error) {
   if (code.includes("too-many-requests")) return "Too many attempts. Please wait a moment and try again.";
   if (code.includes("operation-not-allowed")) return "Email sign-in is not enabled in the Firebase project yet.";
   if (code.includes("api-key")) return "The Firebase API key was rejected. Please check the key.";
-  if (code.includes("permission-denied")) return "Your profile couldn’t be read. Firestore security rules need to be deployed.";
+  if (code.includes("permission-denied")) return "Sign-in worked, but the club database refused access. The website's security rules have not been published in Firebase yet.";
   return error?.message || "Something went wrong. Please try again.";
 }
