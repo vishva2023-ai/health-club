@@ -1,6 +1,9 @@
 # VIT Health Club roadmap (from brief in chat)
 
 ## Updated scope: three uploaded role briefs
+- [ ] Extended responsibilities received 28 October: complete all role responsibilities; retain the full responsibility matrix and demonstration sequence without dropping unfinished scope.
+- [ ] Critical review additions: participation/IV applications, ordered preliminary→Faculty decisions, correction/resubmission, attendance amendments, separate OD confirmation, sponsorship proposals/support, notifications, and certificate downloads.
+- [ ] Appointment-based Board permissions and separation of Admin from academic authority.
 - [x] Enlarge the existing website's screens, text, and controls; provide distinct Student, Board Member, and Faculty/Admin entry points without self-assigned roles.
 - [ ] Implement all three role briefs as connected workspaces sharing Firebase records and controlled review workflows.
 - [ ] Verify cross-role journeys: event proposal to registration and attendance; report submission to correction and faculty decision; request escalation and outcome; verified enrollment and authorized certificates.
