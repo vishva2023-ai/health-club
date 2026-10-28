@@ -16,3 +16,7 @@
 - User roles come only from Firestore users/{uid}.role; never let the UI pick a role. Security rules in firestore.rules.
 - ConnectedWorkspace is the live signed-in workspace; legacy prototype dashboards remain reference-only so sample data never masquerades as saved records.
 - Browser-safe clubPolicy holds testable workflow checks; clubService persists shared records, while Firestore rules independently enforce authority and atomic registration counters.
+- Applications use a shared versioned collection with atomic decisions and related outcomes; keep Faculty-only final decisions separate from Board preliminary checks, institutional confirmations, and fulfillment.
+- Application evidence uses authenticated Storage blob reads scoped through its parent application rather than public download-token links, so assigned review authority remains enforceable.
+- Firebase emulator configuration and conditional permission tests live in the project; use the demo project ID for isolated rule checks without touching production data.
+- Local browser emulator testing is opt-in through firebaseEmulator=1 on localhost in development only; never connect published sessions to emulators.

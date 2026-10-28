@@ -21,18 +21,22 @@ describe('connected role rules', () => {
     expect(attendanceProblem(student, 's1', event, { status: 'registered' }, null)).toContain('organizers');
   });
   it('board attendance is limited to assigned events and cannot change locked records', () => {
-    const board = { role: 'board', status: 'active' };
+    const board = { role: 'board', status: 'active', appointmentStarts: '2026-01-01', appointmentEnds: '2028-01-01' };
     expect(attendanceProblem(board, 'other', event, { status: 'registered' }, null)).toContain('organizers');
     expect(attendanceProblem(board, 'board1', { ...event, attendanceLocked: true }, { status: 'registered' }, null)).toContain('finalized');
     expect(attendanceProblem(board, 'board1', event, { status: 'registered' }, null)).toBe('');
   });
   it('registration does not itself give attendance and duplicates are rejected', () => {
-    expect(attendanceProblem({ role: 'board', status: 'active' }, 'board1', event, { status: 'waitlisted' }, null)).toContain('confirmed');
-    expect(attendanceProblem({ role: 'board', status: 'active' }, 'board1', event, { status: 'registered' }, { status: 'present' })).toContain('already');
+    const board = { role: 'board', status: 'active', appointmentStarts: '2026-01-01', appointmentEnds: '2028-01-01' };
+    expect(attendanceProblem(board, 'board1', event, { status: 'waitlisted' }, null)).toContain('confirmed');
+    expect(attendanceProblem(board, 'board1', event, { status: 'registered' }, { status: 'present' })).toContain('already');
   });
   it('board preliminary checks and admin access are not academic approval', () => {
     expect(permittedReview({ role: 'board', status: 'active' }, 'final')).toBe(false);
     expect(permittedReview({ role: 'admin', status: 'active' }, 'final')).toBe(false);
     expect(permittedReview({ role: 'faculty', status: 'active' }, 'final')).toBe(true);
+  });
+  it('an ended Board appointment cannot record attendance', () => {
+    expect(attendanceProblem({ role: 'board', status: 'active', appointmentStarts: '2025-01-01', appointmentEnds: '2026-01-01' }, 'board1', event, { status: 'registered' }, null)).toContain('organizers');
   });
 });

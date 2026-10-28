@@ -6,5 +6,15 @@ service firebase.storage {
       allow read: if request.auth != null && (request.auth.uid == uid || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'faculty');
     }
     match /{path=**} { allow read, write: if false; }
+    match /applicationEvidence/{applicationId}/{uid}/{file} {
+      allow write: if request.auth != null && request.auth.uid == uid && resource == null;
+      allow read: if request.auth != null && (request.auth.uid == uid
+        || (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'active'
+          && (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'faculty'
+            || (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'board'
+              && request.time >= firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.appointmentOpenAt
+              && request.time < firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.appointmentCloseAt
+              && request.auth.uid in firestore.get(/databases/(default)/documents/applications/$(applicationId)).data.coordinatorIds))));
+    }
   }
 }
