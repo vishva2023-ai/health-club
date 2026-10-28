@@ -143,14 +143,6 @@ service cloud.firestore {
         && !eventData(request.resource.data.eventId).get('attendanceLocked', false)
         && id == request.resource.data.eventId + '_' + request.resource.data.studentId
         && request.resource.data.coordinatorIds == eventData(request.resource.data.eventId).coordinatorIds
-        && (request.resource.data.type != 'attendance-correction' || request.resource.data.requestedAttendance in ['present', 'absent'])
-        && (!(request.resource.data.type in ['participation', 'iv-participation'])
-          || (enrolled() && eventData(request.resource.data.eventId).status == 'published'
-            && eventData(request.resource.data.eventId).registrationMode == 'approval'
-            && request.time >= eventData(request.resource.data.eventId).registrationOpenAt
-            && request.time < eventData(request.resource.data.eventId).registrationCloseAt
-            && eventData(request.resource.data.eventId).registrationCount < eventData(request.resource.data.eventId).capacity
-            && (request.resource.data.type != 'iv-participation' || eventData(request.resource.data.eventId).category == 'IV')))
         && request.resource.data.recordedBy == request.auth.uid && request.resource.data.recordedAt == request.time
         && request.resource.data.status == 'present'
         && get(/databases/$(database)/documents/registrations/$(id)).data.status == 'registered'
@@ -239,6 +231,14 @@ service cloud.firestore {
         && request.resource.data.explanation is string && request.resource.data.explanation.size() > 0
         && request.resource.data.institutionalStatus == 'pending' && request.resource.data.fulfillmentStatus == 'pending'
         && request.resource.data.coordinatorIds == eventData(request.resource.data.eventId).coordinatorIds
+        && (request.resource.data.type != 'attendance-correction' || request.resource.data.requestedAttendance in ['present', 'absent'])
+        && (!(request.resource.data.type in ['participation', 'iv-participation'])
+          || (enrolled() && eventData(request.resource.data.eventId).status == 'published'
+            && eventData(request.resource.data.eventId).registrationMode == 'approval'
+            && request.time >= eventData(request.resource.data.eventId).registrationOpenAt
+            && request.time < eventData(request.resource.data.eventId).registrationCloseAt
+            && eventData(request.resource.data.eventId).registrationCount < eventData(request.resource.data.eventId).capacity
+            && (request.resource.data.type != 'iv-participation' || eventData(request.resource.data.eventId).category == 'IV')))
         && (request.resource.data.type != 'sponsorship-proposal' || assigned(eventData(request.resource.data.eventId)))
         && getAfter(/databases/$(database)/documents/applications/$(id)/versions/1).data.explanation == request.resource.data.explanation;
       allow update: if

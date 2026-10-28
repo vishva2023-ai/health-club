@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, setDoc, updateDoc, getDoc, Timestamp, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { type Firestore, doc, setDoc, updateDoc, getDoc, Timestamp, writeBatch, serverTimestamp } from 'firebase/firestore';
 
 const suite = process.env['FIRESTORE_EMULATOR_HOST'] ? describe : describe.skip;
 suite('Firebase authority and atomic outcomes', () => {
@@ -11,7 +11,7 @@ suite('Firebase authority and atomic outcomes', () => {
   beforeEach(async () => {
     await env.clearFirestore();
     await env.withSecurityRulesDisabled(async (context) => {
-      const db = context.firestore();
+      const db = context.firestore() as unknown as Firestore;
       for (const [uid, role] of [['s1', 'student'], ['b1', 'board'], ['b2', 'board'], ['f1', 'faculty'], ['a1', 'admin']]) {
         await setDoc(doc(db, 'users', uid), { uid, name: uid, role, status: 'active', juniorCore: 'verified', excEnrollment: 'verified', appointmentOpenAt: Timestamp.fromMillis(0), appointmentCloseAt: Timestamp.fromMillis(Date.now() + 86400000) });
       }
@@ -19,7 +19,7 @@ suite('Firebase authority and atomic outcomes', () => {
       await setDoc(doc(db, 'applications', 'app1'), { type: 'iv-participation', eventId: 'e1', studentId: 's1', coordinatorIds: ['b1'], status: 'submitted', version: 1, institutionalStatus: 'pending', fulfillmentStatus: 'pending' });
     });
   });
-  const dbFor = (uid: string) => env.authenticatedContext(uid).firestore();
+  const dbFor = (uid: string) => env.authenticatedContext(uid).firestore() as unknown as Firestore;
   it('Admin cannot promote themselves to Faculty', async () => {
     await assertFails(updateDoc(doc(dbFor('a1'), 'users', 'a1'), { role: 'faculty' }));
   });
@@ -30,7 +30,7 @@ suite('Firebase authority and atomic outcomes', () => {
     await assertFails(getDoc(doc(dbFor('b2'), 'applications', 'app1')));
   });
   it('an expired appointment cannot read assigned applications', async () => {
-    await env.withSecurityRulesDisabled((context) => updateDoc(doc(context.firestore(), 'users', 'b1'), { appointmentCloseAt: Timestamp.fromMillis(1) }));
+    await env.withSecurityRulesDisabled((context) => updateDoc(doc(context.firestore() as unknown as Firestore, 'users', 'b1'), { appointmentCloseAt: Timestamp.fromMillis(1) }));
     await assertFails(getDoc(doc(dbFor('b1'), 'applications', 'app1')));
   });
   async function decision(uid: string, status: string) {
@@ -52,7 +52,7 @@ suite('Firebase authority and atomic outcomes', () => {
     await assertFails(updateDoc(doc(dbFor('f1'), 'events', 'e1'), { registrationCount: 2 }));
   });
   it('approval without a confirmed registration outcome is denied', async () => {
-    await env.withSecurityRulesDisabled((context) => updateDoc(doc(context.firestore(), 'applications', 'app1'), { status: 'preliminary-checked' }));
+    await env.withSecurityRulesDisabled((context) => updateDoc(doc(context.firestore() as unknown as Firestore, 'applications', 'app1'), { status: 'preliminary-checked' }));
     const db = dbFor('f1'); const batch = writeBatch(db); const { serverTimestamp } = await import('firebase/firestore');
     batch.set(doc(db, 'applications', 'app1', 'decisions', 'd1'), { reviewerId: 'f1', previousStatus: 'preliminary-checked', status: 'approved', remarks: 'Accepted', decidedAt: serverTimestamp() });
     batch.update(doc(db, 'applications', 'app1'), { status: 'approved', remarks: 'Accepted', reviewedBy: 'f1', latestDecisionId: 'd1', updatedBy: 'f1', updatedAt: serverTimestamp() });
@@ -73,7 +73,7 @@ suite('Firebase authority and atomic outcomes', () => {
     await assertFails(getDoc(doc(dbFor('b2'), 'notifications', 'n1')));
   });
   it('Faculty final approval atomically confirms registration and fills the second seat', async () => {
-    await env.withSecurityRulesDisabled((context) => updateDoc(doc(context.firestore(), 'applications', 'app1'), { status: 'preliminary-checked' }));
+    await env.withSecurityRulesDisabled((context) => updateDoc(doc(context.firestore() as unknown as Firestore, 'applications', 'app1'), { status: 'preliminary-checked' }));
     const db = dbFor('f1'); const batch = writeBatch(db);
     batch.set(doc(db, 'applications', 'app1', 'decisions', 'd1'), { reviewerId: 'f1', previousStatus: 'preliminary-checked', status: 'approved', remarks: 'Accepted', decidedAt: serverTimestamp() });
     batch.update(doc(db, 'applications', 'app1'), { status: 'approved', remarks: 'Accepted', reviewedBy: 'f1', latestDecisionId: 'd1', updatedBy: 'f1', updatedAt: serverTimestamp() });
@@ -81,13 +81,13 @@ suite('Firebase authority and atomic outcomes', () => {
     batch.update(doc(db, 'events', 'e1'), { registrationCount: 2, latestApplicationId: 'app1' });
     await assertSucceeds(batch.commit());
     const registration = await assertSucceeds(getDoc(doc(dbFor('s1'), 'registrations', 'e1_s1')));
-    if (registration.data()?.status !== 'registered') throw new Error('Registration outcome was not saved');
+    if (registration.data()?.['status'] !== 'registered') throw new Error('Registration outcome was not saved');
     const event = await getDoc(doc(dbFor('s1'), 'events', 'e1'));
-    if (event.data()?.registrationCount !== 2) throw new Error('Capacity count was not incremented');
+    if (event.data()?.['registrationCount'] !== 2) throw new Error('Capacity count was not incremented');
   });
   it('attendance correction final approval actually amends attendance with an audit record', async () => {
     await env.withSecurityRulesDisabled(async (context) => {
-      const db = context.firestore();
+      const db = context.firestore() as unknown as Firestore;
       await updateDoc(doc(db, 'applications', 'app1'), { type: 'attendance-correction', requestedAttendance: 'absent', status: 'preliminary-checked' });
       await setDoc(doc(db, 'registrations', 'e1_s1'), { eventId: 'e1', studentId: 's1', coordinatorIds: ['b1'], status: 'registered' });
       await setDoc(doc(db, 'attendance', 'e1_s1'), { eventId: 'e1', studentId: 's1', coordinatorIds: ['b1'], status: 'present' });
@@ -98,16 +98,16 @@ suite('Firebase authority and atomic outcomes', () => {
     batch.set(doc(db, 'attendance', 'e1_s1'), { eventId: 'e1', studentId: 's1', coordinatorIds: ['b1'], status: 'absent', amendmentApplicationId: 'app1', recordedBy: 'f1', recordedAt: serverTimestamp() });
     await assertSucceeds(batch.commit());
     const attendance = await getDoc(doc(dbFor('s1'), 'attendance', 'e1_s1'));
-    if (attendance.data()?.status !== 'absent') throw new Error('Attendance was not amended');
+    if (attendance.data()?.['status'] !== 'absent') throw new Error('Attendance was not amended');
     await assertSucceeds(getDoc(doc(dbFor('s1'), 'applications', 'app1', 'decisions', 'd1')));
   });
   it('OD confirmation requires its own audited reference after club approval', async () => {
-    await env.withSecurityRulesDisabled((context) => updateDoc(doc(context.firestore(), 'applications', 'app1'), { type: 'od', status: 'approved' }));
+    await env.withSecurityRulesDisabled((context) => updateDoc(doc(context.firestore() as unknown as Firestore, 'applications', 'app1'), { type: 'od', status: 'approved' }));
     const db = dbFor('f1'); const batch = writeBatch(db);
     batch.set(doc(db, 'applications', 'app1', 'decisions', 'confirm1'), { reviewerId: 'f1', previousStatus: 'approved', status: 'confirmed', remarks: 'Institution reference OD-1', decidedAt: serverTimestamp() });
     batch.update(doc(db, 'applications', 'app1'), { institutionalStatus: 'confirmed', confirmationReference: 'Institution reference OD-1', latestDecisionId: 'confirm1', updatedBy: 'f1', updatedAt: serverTimestamp() });
     await assertSucceeds(batch.commit());
     const app = await getDoc(doc(dbFor('s1'), 'applications', 'app1'));
-    if (app.data()?.status !== 'approved' || app.data()?.institutionalStatus !== 'confirmed') throw new Error('OD statuses are not separately stored');
+    if (app.data()?.['status'] !== 'approved' || app.data()?.['institutionalStatus'] !== 'confirmed') throw new Error('OD statuses are not separately stored');
   });
 });
