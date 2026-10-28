@@ -76,3 +76,72 @@
 @keyframes club-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .connected-record, .connected-workspace * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 @media (max-width: 650px) { .connected-form { padding: 18px; } .connected-tabs { flex-wrap: nowrap; overflow-x: auto; padding-block: 12px; } .connected-tabs button { flex: 0 0 auto; } }
+
+/* ===== Colorful role themes ===== */
+.connected-workspace[data-theme="student"] { --blue: #0b8fd8; --accent2: #22c1a6; --tint: #eaf7ff; --line: #cfe8f7; --ink: #0d3550; --muted-dark: #3f6680; }
+.connected-workspace[data-theme="board"] { --blue: #e2572b; --accent2: #f5a524; --tint: #fff4ea; --line: #f6d9c4; --ink: #4a2312; --muted-dark: #85543c; }
+.connected-workspace[data-theme="faculty"] { --blue: #7b3fe4; --accent2: #e54595; --tint: #f6f0ff; --line: #e1d3f7; --ink: #2d1659; --muted-dark: #634c8a; }
+.connected-admin { background: radial-gradient(circle at 10% 0%, color-mix(in oklab, var(--accent2) 18%, transparent), transparent 40%), radial-gradient(circle at 90% 10%, color-mix(in oklab, var(--blue) 16%, transparent), transparent 45%), var(--tint); }
+.connected-tabs { background: color-mix(in oklab, var(--tint) 88%, transparent); }
+.connected-admin-header { margin: -32px -32px 0; padding: 18px 32px; background: linear-gradient(115deg, var(--blue), var(--accent2), var(--blue)); background-size: 220% 100%; animation: club-flow 9s ease infinite; color: #fff; border: 0; border-radius: 0 0 24px 24px; box-shadow: 0 12px 30px -14px var(--blue); }
+.connected-admin-header strong, .connected-admin-header span { color: #fff; }
+.connected-brand { display: inline-flex; align-items: center; gap: 12px; }
+.club-logo { width: 46px; height: 46px; object-fit: contain; border-radius: 12px; background: #fff; padding: 3px; box-shadow: 0 4px 14px #0002; }
+.role-pill { padding: 6px 14px; border-radius: 99px; background: #ffffff2e; font-weight: 600; text-transform: capitalize; }
+.connected-workspace .connected-admin-header button { background: #fff; color: var(--blue); border: 0; }
+.connected-heading h1 { background: linear-gradient(90deg, var(--blue), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; font-size: 34px; }
+.connected-workspace button[data-active="true"] { background: linear-gradient(120deg, var(--blue), var(--accent2)); color: #fff; border-color: transparent; box-shadow: 0 6px 16px -8px var(--blue); }
+.connected-workspace button:hover:not(:disabled) { transform: translateY(-2px); }
+.connected-record { border-top: 4px solid var(--blue); transition: transform .2s, box-shadow .2s; }
+.connected-record:hover { transform: translateY(-4px); box-shadow: 0 16px 30px -18px var(--blue); border-color: var(--blue); }
+.connected-grid > .connected-record:nth-child(3n+2) { border-top-color: var(--accent2); }
+.connected-banner { background: linear-gradient(120deg, color-mix(in oklab, var(--blue) 10%, #fff), color-mix(in oklab, var(--accent2) 12%, #fff)); border-color: var(--line); color: var(--ink); }
+
+/* Board members */
+.board-intro { font-size: 18px; color: var(--muted-dark); }
+.member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px; margin: 20px 0 36px; }
+.member-card { background: #fff; border-radius: 20px; padding: 24px 16px; text-align: center; border: 1px solid var(--line); animation: club-pop .5s ease both; transition: transform .2s; }
+.member-card:hover { transform: translateY(-6px) rotate(-1deg); }
+.member-card h2 { font-size: 18px; margin: 12px 0 4px; color: var(--ink); }
+.member-card small { color: var(--muted-dark); font-weight: 600; }
+.member-avatar { display: inline-grid; place-items: center; width: 70px; height: 70px; border-radius: 50%; color: #fff; font: 800 22px Manrope, sans-serif; background: linear-gradient(135deg, #0b8fd8, #22c1a6); }
+.member-avatar[data-tone="1"] { background: linear-gradient(135deg, #e2572b, #f5a524); }
+.member-avatar[data-tone="2"] { background: linear-gradient(135deg, #7b3fe4, #e54595); }
+.member-avatar[data-tone="3"] { background: linear-gradient(135deg, #16a34a, #84cc16); }
+.member-avatar[data-tone="4"] { background: linear-gradient(135deg, #db2777, #f59e0b); }
+.board-poster { width: 100%; max-width: 640px; border-radius: 20px; box-shadow: 0 20px 40px -20px #0006; display: block; }
+.board-contact { margin-top: 16px; color: var(--muted-dark); }
+
+/* Live */
+.live-frame { position: relative; border-radius: 22px; overflow: hidden; background: #000; max-width: 1000px; box-shadow: 0 24px 50px -24px var(--blue); }
+.live-frame video { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; }
+.live-badge { position: absolute; top: 16px; left: 16px; background: #e11d48; color: #fff; font-weight: 800; padding: 6px 12px; border-radius: 8px; display: flex; gap: 8px; align-items: center; }
+.live-badge i { width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: club-blink 1s infinite; }
+.live-meta { position: absolute; top: 16px; right: 16px; background: #000a; color: #fff; padding: 6px 12px; border-radius: 8px; font-family: monospace; }
+.live-error { position: absolute; inset: auto 16px 60px; background: #fff; color: #9f1239; padding: 12px; border-radius: 10px; }
+.live-cams { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
+.live-connect { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; max-width: 1000px; }
+.live-connect label { flex: 1 1 320px; display: grid; gap: 8px; font-weight: 600; }
+.live-connect input { min-height: 48px; border: 1px solid var(--line); border-radius: 10px; padding: 12px; font-size: 16px; }
+.live-note { color: var(--muted-dark); margin-top: 12px; }
+
+/* Login role colors */
+.login-screen[data-entry="student"] { --role-a: #0b8fd8; --role-b: #22c1a6; }
+.login-screen[data-entry="board"] { --role-a: #e2572b; --role-b: #f5a524; }
+.login-screen[data-entry="faculty"] { --role-a: #7b3fe4; --role-b: #e54595; }
+.login-screen[data-entry] .login-story { background: linear-gradient(140deg, var(--role-a), var(--role-b), var(--role-a)); background-size: 220% 220%; animation: club-flow 10s ease infinite; transition: background .5s; }
+.login-screen[data-entry] .login-panel { background: linear-gradient(180deg, color-mix(in oklab, var(--role-a) 8%, #fff), #fff); }
+.login-screen[data-entry] .sign-in-button, .login-screen[data-entry] .role-entry-tabs button[aria-pressed="true"] { background: linear-gradient(120deg, var(--role-a), var(--role-b)); color: #fff; border-color: transparent; }
+.login-screen[data-entry] .login-heading h2, .login-screen[data-entry] .eyebrow { color: var(--role-a); }
+.login-screen .club-logo { width: 52px; height: 52px; }
+.login-form-wrap { animation: club-pop .5s ease both; }
+
+@keyframes club-flow { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes club-pop { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes club-blink { 50% { opacity: .2; } }
+@media (max-width: 650px) { .connected-admin-header { margin: -20px -16px 0; padding: 14px 16px; } }
+@media (prefers-reduced-motion: reduce) { .connected-admin-header, .login-story, .member-card, .login-form-wrap, .live-badge i { animation: none !important; } }
+.login-screen[data-entry] .story-content h1 em { color: #fff; text-shadow: 0 4px 24px #0003; }
+.login-screen[data-entry] .story-content .eyebrow, .login-screen[data-entry] .story-content p, .login-screen[data-entry] .story-stats small { color: #fffffff0; }
+.login-screen[data-entry] .story-stats small { font-size: 13px; }
+.login-screen .brand-light strong { font-size: 18px; }
