@@ -21,6 +21,30 @@ suite('Firebase authority and atomic outcomes', () => {
     });
   });
   const dbFor = (uid: string) => env.authenticatedContext(uid).firestore() as unknown as Firestore;
+  async function selfAttendance(uid: string, targetUid = uid) {
+    const db = dbFor(uid); const batch = writeBatch(db); const id = `e1_${targetUid}`;
+    batch.set(doc(db, 'boardAttendance', id, 'history', 'h1'), { previousStatus: 'unrecorded', status: 'present', reason: 'Attended event', recordedBy: uid, recordedAt: serverTimestamp() });
+    batch.set(doc(db, 'boardAttendance', id), { eventId: 'e1', memberId: targetUid, memberName: targetUid, status: 'present', reason: 'Attended event', method: 'board-self-reported', recordedBy: uid, recordedAt: serverTimestamp(), latestEntryId: 'h1' });
+    return batch.commit();
+  }
+  it('Board members can self-record attendance even when not assigned to the published event', async () => { await assertSucceeds(selfAttendance('b2')); });
+  it('students cannot write Board self-attendance', async () => { await assertFails(selfAttendance('s1')); });
+  it('Board cannot self-record attendance for another member', async () => { await assertFails(selfAttendance('b1', 'b2')); });
+  it('Board cannot self-record attendance when locked', async () => { await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore() as unknown as Firestore, 'events', 'e1'), { attendanceLocked: true })); await assertFails(selfAttendance('b1')); });
+  async function organizerChange(uid: string, includeHistory = true) {
+    await env.withSecurityRulesDisabled(async c => {
+      const db = c.firestore() as unknown as Firestore;
+      await setDoc(doc(db, 'registrations', 'e1_s1'), { eventId: 'e1', studentId: 's1', status: 'registered', coordinatorIds: ['b1'] });
+      await setDoc(doc(db, 'attendance', 'e1_s1'), { eventId: 'e1', studentId: 's1', status: 'absent', coordinatorIds: ['b1'], method: 'organizer-verification' });
+    });
+    const db = dbFor(uid); const batch = writeBatch(db);
+    if (includeHistory) batch.set(doc(db, 'attendance', 'e1_s1', 'organizerHistory', 'h1'), { previousStatus: 'absent', status: 'present', reason: 'Verified paper register', recordedBy: uid, recordedAt: serverTimestamp() });
+    batch.set(doc(db, 'attendance', 'e1_s1'), { eventId: 'e1', studentId: 's1', studentName: 'Student', regNo: '', coordinatorIds: ['b1'], status: 'present', reason: 'Verified paper register', method: 'organizer-verification', recordedBy: uid, recordedAt: serverTimestamp(), latestEntryId: 'h1' });
+    return batch.commit();
+  }
+  it('assigned Board updates student attendance with atomic history', async () => { await assertSucceeds(organizerChange('b1')); });
+  it('unassigned Board cannot update student attendance', async () => { await assertFails(organizerChange('b2')); });
+  it('Board updates without audit history are denied', async () => { await assertFails(organizerChange('b1', false)); });
   it('Admin cannot promote themselves to Faculty', async () => {
     await assertFails(updateDoc(doc(dbFor('a1'), 'users', 'a1'), { role: 'faculty' }));
   });

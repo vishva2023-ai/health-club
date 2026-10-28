@@ -73,6 +73,20 @@
 .workflow-badge { display: inline-flex; padding: 5px 12px; border-radius: 99px; background: #eaf3ed; color: #235c43; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
 .attendance-overview { margin-block: 16px 28px; }
 .attendance-overview > .connected-grid { margin-top: 20px; }
+.attendance-categories { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0; }
+.attendance-total { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 24px 0; }
+.attendance-total h2 { font-size: 24px; }
+.attendance-list { display: grid; gap: 16px; }
+.attendance-session { display: grid; grid-template-columns: minmax(0, 1fr) 100px; align-items: center; gap: 22px; padding: 24px; border-radius: 8px; background: var(--attendance-surface); color: var(--attendance-foreground); animation: club-enter .3s ease both; }
+.attendance-session h2 { font-size: 20px; margin-bottom: 8px; overflow-wrap: anywhere; }
+.attendance-session p { color: var(--attendance-muted); margin: 8px 0; }
+.attendance-ring { width: 100px; height: 100px; border: 8px solid var(--attendance-track); border-top-color: var(--attendance-absent); border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.attendance-ring[data-present="true"] { border-color: var(--attendance-present); }
+.attendance-ring strong { font-size: 22px; }
+.attendance-ring small { font-size: 12px; text-transform: capitalize; }
+.attendance-manager .connected-grid { margin-top: 22px; }
+.member-photo { display: block; width: 100%; aspect-ratio: 4/5; object-fit: contain; object-position: top; border-radius: 8px; }
+@media (max-width: 650px) { .attendance-session { padding: 18px; gap: 14px; grid-template-columns: minmax(0, 1fr) 76px; } .attendance-ring { width: 76px; height: 76px; border-width: 6px; } .attendance-ring strong { font-size: 18px; } .attendance-session h2 { font-size: 18px; } }
 @keyframes club-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .connected-record, .connected-workspace * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 @media (max-width: 650px) { .connected-form { padding: 18px; } .connected-tabs { flex-wrap: nowrap; overflow-x: auto; padding-block: 12px; } .connected-tabs button { flex: 0 0 auto; } }

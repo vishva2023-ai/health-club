@@ -3,6 +3,7 @@ import { ref, uploadBytesResumable, getBlob } from 'firebase/storage';
 import { getFirebase } from '@/lib/firebase';
 import { registrationProblem, attendanceProblem, isFaculty, isBoard, canCoordinate } from './clubPolicy';
 import { applicationProblem, reviewProblem } from './workflowPolicy';
+import { organizerUpdateProblem, boardSelfAttendanceProblem } from './attendancePolicy';
 
 export async function subscribeRecords(name, filters, onData, onError) {
   const { db } = await getFirebase();
@@ -68,6 +69,34 @@ export async function recordAttendance(profile, eventId, registrationId) {
     const problem = attendanceProblem(profile, uid, eventSnap.data(), registration, existing.exists() ? existing.data() : null);
     if (problem) throw new Error(problem);
     tx.set(attendanceRef, { eventId, coordinatorIds: eventSnap.data().coordinatorIds, studentId: registration.studentId, studentName: registration.studentName, regNo: registration.regNo, status: 'present', recordedBy: uid, recordedAt: serverTimestamp(), method: 'organizer-verification' });
+  });
+}
+export async function saveParticipantAttendance(profile, eventId, registrationId, status, reason) {
+  const { db, auth } = await getFirebase(); const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Sign in again.');
+  return runTransaction(db, async tx => {
+    const eventRef = doc(db, 'events', eventId); const regRef = doc(db, 'registrations', registrationId);
+    const [eventSnap, regSnap] = await Promise.all([tx.get(eventRef), tx.get(regRef)]);
+    if (!eventSnap.exists() || !regSnap.exists() || regSnap.data().eventId !== eventId) throw new Error('Event or registration not found.');
+    const reg = regSnap.data(); const target = doc(db, 'attendance', `${eventId}_${reg.studentId}`); const previous = await tx.get(target);
+    const problem = organizerUpdateProblem(profile, uid, eventSnap.data(), reg, previous.data(), status, reason);
+    if (problem) throw new Error(problem);
+    const entry = doc(collection(db, 'attendance', target.id, 'organizerHistory'));
+    tx.set(entry, { previousStatus: previous.data()?.status || 'unrecorded', status, reason: reason.trim(), recordedBy: uid, recordedAt: serverTimestamp() });
+    tx.set(target, { eventId, studentId: reg.studentId, studentName: reg.studentName || '', regNo: reg.regNo || '', coordinatorIds: eventSnap.data().coordinatorIds, status, reason: reason.trim(), method: 'organizer-verification', recordedBy: uid, recordedAt: serverTimestamp(), latestEntryId: entry.id });
+  });
+}
+export async function saveBoardAttendance(profile, eventId, status, reason) {
+  const { db, auth } = await getFirebase(); const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Sign in again.');
+  if (!['present', 'absent'].includes(status) || !reason?.trim()) throw new Error('Choose attendance and enter a reason.');
+  return runTransaction(db, async tx => {
+    const eventSnap = await tx.get(doc(db, 'events', eventId));
+    const problem = boardSelfAttendanceProblem(profile, eventSnap.data()); if (problem) throw new Error(problem);
+    const target = doc(db, 'boardAttendance', `${eventId}_${uid}`); const previous = await tx.get(target);
+    const entry = doc(collection(db, 'boardAttendance', target.id, 'history'));
+    tx.set(entry, { previousStatus: previous.data()?.status || 'unrecorded', status, reason: reason.trim(), recordedBy: uid, recordedAt: serverTimestamp() });
+    tx.set(target, { eventId, memberId: uid, memberName: profile.name || '', status, reason: reason.trim(), method: 'board-self-reported', recordedBy: uid, recordedAt: serverTimestamp(), latestEntryId: entry.id });
   });
 }
 export async function submitReport(report, content, attachments, uid, draft = false) {
